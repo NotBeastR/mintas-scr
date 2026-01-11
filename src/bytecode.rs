@@ -101,11 +101,14 @@ impl BytecodeProgram {
     pub fn add_constant(&mut self, constant: Constant) -> usize {
         // Check if constant already exists
         for (i, c) in self.constants.iter().enumerate() {
-            if matches!((c, &constant), 
-                (Constant::Number(a), Constant::Number(b)) if (a - b).abs() < f64::EPSILON ||
-                (Constant::String(a), Constant::String(b)) if a == b ||
-                (Constant::Boolean(a), Constant::Boolean(b)) if a == b
-            ) {
+            let matches = match (c, &constant) {
+                (Constant::Number(a), Constant::Number(b)) if (a - b).abs() < f64::EPSILON => true,
+                (Constant::String(a), Constant::String(b)) if a == b => true,
+                (Constant::Boolean(a), Constant::Boolean(b)) if a == b => true,
+                _ => false,
+            };
+            
+            if matches {
                 return i;
             }
         }
