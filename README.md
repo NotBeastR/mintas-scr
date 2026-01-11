@@ -7,7 +7,11 @@ Mintas is a powerful, production-ready, universal polyglot programming language 
 ## 📚 Documentation
 
 **Official Documentation:** [https://github.com/NotBeastR/mintas-docs](https://github.com/NotBeastR/mintas-docs)
+# Install
+bash install.sh
 
+# Uninstall
+bash install.sh uninstall
 ## ✨ Features
 
 - **Expressive Syntax**: Clean and readable syntax with unique keywords like `say`, `ask`, `is`, `so`, and `measure`.
