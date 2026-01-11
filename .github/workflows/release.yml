@@ -1,0 +1,51 @@
+name: Cross-Platform Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers when you push a tag like v1.0.0
+
+jobs:
+  build-and-release:
+    name: Build for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: mintas-linux.tar.gz
+          - os: windows-latest
+            artifact_name: mintas-windows.zip
+          - os: macos-latest
+            artifact_name: mintas-macos.tar.gz
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build Release
+      run: cargo build --release --all-features
+
+    - name: Package Binaries (Windows)
+      if: matrix.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        Compress-Archive -Path target/release/mintas.exe -DestinationPath ${{ matrix.artifact_name }}
+
+    - name: Package Binaries (Unix)
+      if: matrix.os != 'windows-latest'
+      run: |
+        tar -czf ${{ matrix.artifact_name }} -C target/release mintas
+
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: ${{ matrix.artifact_name }}
+        name: Release ${{ github.ref_name }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
