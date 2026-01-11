@@ -683,6 +683,7 @@ fn run_repl() {
                 println!("  \x1b[1;36mvars\x1b[0m      - List all variables");
                 println!("  \x1b[1;36mexit\x1b[0m      - Exit the REPL");
                 println!("  \x1b[1;36mquit\x1b[0m      - Exit the REPL");
+                println!("\n  \x1b[1;33mTip:\x1b[0m Use \x1b[1;36mmintas --help\x1b[0m from shell for full CLI options");
                 println!();
                 continue;
             }
@@ -718,8 +719,15 @@ fn run_repl() {
         history.push_back(input.to_string());
         if history.len() > 100 { history.pop_front(); }
         
-        if let Err(e) = execute_jetx(input, &mut evaluator, false, false) {
-            eprintln!("Error: {}", e);
+        match execute_jetx(input, &mut evaluator, false, false) {
+            Ok(Value::ExitSignal) => {
+                println!("\n\x1b[1;32m✓\x1b[0m Goodbye! Thanks for using Mintas.\n");
+                break;
+            }
+            Ok(_) => {}
+            Err(e) => {
+                eprintln!("Error: {}", e);
+            }
         }
     }
     println!("Goodbye!");
@@ -911,7 +919,7 @@ fn xdbx_build(release: bool, target: &str) {
             out
         }
         "deb" | "debian" | "linux-deb" => {
-            let out = format!("{}/{}_{}_amd64.deb", target_dir, project_name, "0.1.0");
+            let out = format!("{}/{}_{}_amd64.deb", target_dir, project_name, "1.0.0");
             create_real_deb(&out, project_name, &source, uses_canvas);
             out
         }
@@ -1565,7 +1573,7 @@ fn create_real_deb(output: &str, project_name: &str, source: &str, uses_canvas: 
     
     // Control file
     let control = format!(r#"Package: {}
-Version: 0.1.0
+Version: 1.0.0
 Section: utils
 Priority: optional
 Architecture: amd64
@@ -1689,9 +1697,9 @@ fn create_real_pkg(output: &str, project_name: &str, source: &str, uses_canvas: 
     <key>CFBundleName</key>
     <string>{}</string>
     <key>CFBundleVersion</key>
-    <string>0.1.0</string>
+    <string>1.0.0</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>1.0.0</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.13</string>
     {}
@@ -1720,8 +1728,7 @@ chmod +x /usr/local/bin/{}
     pkg_content.extend_from_slice(&[0x00, 0x01]); // version
     
     // Embed the source and metadata
-    let metadata = format!("MINTAS_PKG\nNAME={}\nVERSION=0.1.0\nCANVAS={}\n---\n{}", 
-        project_name, uses_canvas, source);
+    let metadata = format!("MINTAS_PKG\nNAME={}\nVERSION=1.0.0\nCANVAS={}\n---\n{}",         project_name, uses_canvas, source);
     pkg_content.extend_from_slice(metadata.as_bytes());
     
     fs::write(output, &pkg_content).ok();

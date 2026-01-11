@@ -34,7 +34,7 @@ jobs:
         sudo apt-get install -y libasound2-dev pkg-config libssl-dev build-essential
 
     - name: Build Release
-      run: cargo build --release --all-features
+      run: cargo build --release --features full
 
     - name: Package Binaries (Windows)
       if: matrix.os == 'windows-latest'
