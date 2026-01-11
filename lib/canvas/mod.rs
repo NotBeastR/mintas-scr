@@ -25,12 +25,15 @@ static mut SPRITES: Option<HashMap<String, Sprite>> = None;
 #[cfg(feature = "canvas")]
 static mut TEXTURES: Option<HashMap<String, Texture>> = None; // Store textures
 // Global State Variables - Required for Canvas
-static mut SCREEN_WIDTH: AtomicU32 = AtomicU32::new(800);
-static mut SCREEN_HEIGHT: AtomicU32 = AtomicU32::new(600);
-static mut GAME_RUNNING: AtomicBool = AtomicBool::new(false);
-static mut SPRITE_COUNTER: AtomicU32 = AtomicU32::new(0);
+static SCREEN_WIDTH: AtomicU32 = AtomicU32::new(800);
+static SCREEN_HEIGHT: AtomicU32 = AtomicU32::new(600);
+static GAME_RUNNING: AtomicBool = AtomicBool::new(false);
+static SPRITE_COUNTER: AtomicU32 = AtomicU32::new(0);
+#[cfg(feature = "canvas")]
 static mut FRAME_COUNT: u64 = 0;
+#[cfg(feature = "canvas")]
 static mut LAST_TIME: Option<std::time::Instant> = None;
+#[cfg(feature = "canvas")]
 static mut DELTA_TIME: f64 = 0.0;
 #[cfg(feature = "canvas")]
 // Audio wrapper to satisfy Send

@@ -286,6 +286,7 @@ impl Value {
             Value::SuperSet(val) => val.is_truthy(),
             Value::Function(_) | Value::Class(_) | Value::Instance(_) => true,
             Value::ExitSignal | Value::ProceedSignal | Value::ReturnSignal(_) => false,
+            Value::Null => false,
         }
     }
     pub fn is_truthy_in_condition(&self) -> Value {
@@ -3953,6 +3954,7 @@ impl Evaluator {
             Value::ExitSignal => "exit".to_string(),
             Value::ProceedSignal => "proceed".to_string(),
             Value::ReturnSignal(_) => "return".to_string(),
+            Value::Null => "null".to_string(),
         }
     }
     pub fn print_value(&self, val: &Value) {
@@ -4006,7 +4008,8 @@ impl Evaluator {
             Value::Function(_) => print!("<function>"),
             Value::Class(c) => print!("<class:{}>", c.name),
             Value::Instance(i) => print!("<instance:{}>", i.class_name),
-            Value::ExitSignal | Value::ProceedSignal | Value::ReturnSignal(_) => {}
+            Value::ExitSignal | Value::ProceedSignal | Value::ReturnSignal(_) => {},
+            Value::Null => print!("null"),
         }
     }
     pub fn write_value_to_buffer<W: Write>(&self, val: &Value, writer: &mut W) -> MintasResult<()> {
@@ -4061,6 +4064,7 @@ impl Evaluator {
             Value::Class(c) => write!(writer, "<class:{}>", c.name),
             Value::Instance(i) => write!(writer, "<instance:{}>", i.class_name),
             Value::ExitSignal | Value::ProceedSignal | Value::ReturnSignal(_) => Ok(()),
+            Value::Null => write!(writer, "null"),
         };
         result.map_err(|e| MintasError::RuntimeError {
             message: format!("Output error: {}", e),
