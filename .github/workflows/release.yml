@@ -3,7 +3,7 @@ name: Cross-Platform Release
 on:
   push:
     tags:
-      - 'v*' # Triggers when you push a tag like v1.0.0
+      - 'v*'
 
 jobs:
   build-and-release:
@@ -25,6 +25,13 @@ jobs:
 
     - name: Set up Rust
       uses: dtolnay/rust-toolchain@stable
+
+   
+    - name: Install Linux Dependencies
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libasound2-dev pkg-config libssl-dev build-essential
 
     - name: Build Release
       run: cargo build --release --all-features
