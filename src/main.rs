@@ -33,13 +33,13 @@ struct JetXStats {
 
 /// JetX - High Performance JIT Compiler for Mintas
 /// Compiles ALL code to native machine code for C/Rust-level performance
-fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_jetx: bool) -> Result<(), String> {
+fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_jetx: bool) -> Result<Value, String> {
     let total_start = std::time::Instant::now();
     
     let statements = parse_code(code)?;
     
     if statements.is_empty() {
-        return Ok(());
+        return Ok(Value::Empty);
     }
     
     let mut stats = JetXStats {
@@ -69,58 +69,36 @@ fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_j
                             Ok(result) => {
                                 stats.execution_time_us = exec_start.elapsed().as_micros() as u64;
                                 
-                                // If there's a meaningful result and no say() was used, print it
-                                if result != 0.0 && result.abs() > f64::EPSILON {
-                                    // Check if code has say() - if not, print result
-                                    let has_say = statements.iter().any(|s| is_pure_io_statement(s));
-                                    if !has_say {
-                                        if result.fract() == 0.0 && result.abs() < 1e15 {
-                                            println!("{}", result as i64);
-                                        } else {
-                                            println!("{}", result);
-                                        }
-                                    }
+                                // Sync variables back (this is a simplified version of what sync_jetx_variables does)
+                                if let Some(var_name) = find_last_assigned_var(&statements) {
+                                    evaluator.set_variable(var_name, Value::Number(result));
                                 }
+
+                                if show_stats {
+                                    let total_time = total_start.elapsed().as_micros() as u64;
+                                    print_jetx_stats(&stats, total_time);
+                                }
+                                return Ok(Value::Number(result));
                             }
                             Err(e) => {
-                                // JetX execution failed - fall back to interpreter
                                 eprintln!("JetX execution failed: {}, falling back to interpreter", e);
-                                let exec_start = std::time::Instant::now();
-                                execute_interpreter_timed(&statements, evaluator)?;
-                                stats.execution_time_us = exec_start.elapsed().as_micros() as u64;
                                 stats.jetx_compiled = false;
                             }
                         }
                     }
                     Err(e) => {
-                        // JetX compilation failed - fall back to interpreter
                         eprintln!("JetX compilation failed: {}, falling back to interpreter", e);
-                        let exec_start = std::time::Instant::now();
-                        execute_interpreter_timed(&statements, evaluator)?;
-                        stats.execution_time_us = exec_start.elapsed().as_micros() as u64;
                         stats.jetx_compiled = false;
                     }
                 }
             }
-            Err(_) => {
-                // JetX not available - use interpreter
-                let exec_start = std::time::Instant::now();
-                execute_interpreter_timed(&statements, evaluator)?;
-                stats.execution_time_us = exec_start.elapsed().as_micros() as u64;
-            }
+            Err(_) => {}
         }
-        
-        if show_stats {
-            let total_time = total_start.elapsed().as_micros() as u64;
-            print_jetx_stats(&stats, total_time);
-        }
-        
-        return Ok(());
     }
     
-    // Auto mode: measure interpreter first, use JetX if slow
+    // Fall back to interpreter
     let exec_start = std::time::Instant::now();
-    execute_interpreter_timed(&statements, evaluator)?;
+    let result = execute_interpreter_timed(&statements, evaluator)?;
     stats.execution_time_us = exec_start.elapsed().as_micros() as u64;
     
     if show_stats {
@@ -128,7 +106,7 @@ fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_j
         print_jetx_stats(&stats, total_time);
     }
     
-    Ok(())
+    Ok(result)
 }
 
 /// Sync variables from JetX computation back to evaluator
@@ -366,10 +344,12 @@ fn find_last_assigned_var(statements: &[parser::Expr]) -> Option<String> {
 }
 
 /// Execute interpreter and return result (for timing)
-fn execute_interpreter_timed(statements: &[parser::Expr], evaluator: &mut Evaluator) -> Result<(), String> {
+fn execute_interpreter_timed(statements: &[parser::Expr], evaluator: &mut Evaluator) -> Result<Value, String> {
+    let mut last_val = Value::Empty;
     for stmt in statements {
         match evaluator.eval(stmt) {
             Ok(val) => {
+                last_val = val.clone();
                 if should_display(&val, stmt) {
                     evaluator.print_value(&val);
                     println!();
@@ -378,7 +358,7 @@ fn execute_interpreter_timed(statements: &[parser::Expr], evaluator: &mut Evalua
             Err(e) => return Err(e.to_string()),
         }
     }
-    Ok(())
+    Ok(last_val)
 }
 
 #[allow(dead_code)]

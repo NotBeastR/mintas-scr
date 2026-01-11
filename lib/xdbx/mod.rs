@@ -342,7 +342,7 @@ impl XdbxModule {
         }
         let toml_content = format!(r#"[project]
 name = "{}"
-version = "0.1.0"
+version = "1.0.0"
 type = "{}"
 entry = "src/main.mintas"
 [dependencies]
