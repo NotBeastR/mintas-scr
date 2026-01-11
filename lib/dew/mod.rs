@@ -3791,11 +3791,12 @@ fn current_timestamp() -> u64 {
 }
 
 fn generate_websocket_accept_key(key: &str) -> String {
-    use sha1::Digest;
-    let mut hasher = sha1::Sha1::new();
+    use sha1::{Digest, Sha1};
+    use base64::{Engine as _, engine::general_purpose::STANDARD as BASE64};
+    let mut hasher = Sha1::new();
     hasher.update(key.as_bytes());
     hasher.update(b"258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
-    base64::encode(hasher.finalize())
+    BASE64.encode(hasher.finalize())
 }
 
 fn sanitize_html(input: &str) -> String {

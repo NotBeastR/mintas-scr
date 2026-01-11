@@ -90,6 +90,7 @@ impl MintasError {
             MintasError::UnknownFunction { location, .. } => location,
             MintasError::InvalidArgumentCount { location, .. } => location,
             MintasError::InvalidOperand { location, .. } => location,
+            MintasError::CompileError { location, .. } => location,
         }
     }
 }
@@ -186,6 +187,10 @@ impl fmt::Display for MintasError {
             MintasError::InvalidOperand { operation, operand_type, location } => {
                 write!(f, "Type Error at {}: {} does not support operand of type '{}'",
                     location, operation, operand_type)?;
+                write_suggestions(f, self)
+            }
+            MintasError::CompileError { message, location } => {
+                write!(f, "Compile Error at {}: {}", location, message)?;
                 write_suggestions(f, self)
             }
         }

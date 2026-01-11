@@ -57,6 +57,8 @@ hmac = { version = "0.12", optional = true }
 hex = { version = "0.4", optional = true }
 base64 = { version = "0.21", optional = true }
 aes = "0.8"
+sha1 = "0.10"
+
 cbc = "0.1"
 rand = "0.8"
 libloading = "0.8"
@@ -83,7 +85,7 @@ smtp = ["lettre", "tokio"]
 dns = ["trust-dns-resolver", "tokio"]
 ftp = ["suppaftp"]
 ssh = ["ssh2"]
-magic = ["uuid", "csv", "bcrypt", "sha2", "hmac", "hex", "base64"]
+magic = ["uuid", "csv", "bcrypt", "sha2", "sha1", "hmac", "hex", "base64"]
 
 [[bin]]
 name = "mintas"

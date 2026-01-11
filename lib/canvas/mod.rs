@@ -25,19 +25,14 @@ static mut SPRITES: Option<HashMap<String, Sprite>> = None;
 #[cfg(feature = "canvas")]
 static mut TEXTURES: Option<HashMap<String, Texture>> = None; // Store textures
 #[cfg(feature = "canvas")]
+// Audio wrapper to satisfy Send
+struct AudioWrapper(Option<(OutputStream, rodio::OutputStreamHandle)>);
+unsafe impl Send for AudioWrapper {}
+unsafe impl Sync for AudioWrapper {}
+
 lazy_static::lazy_static! {
-    static ref AUDIO_STREAM: Mutex<Option<(OutputStream, rodio::OutputStreamHandle)>> = Mutex::new(None);
+    static ref AUDIO_STREAM: Mutex<AudioWrapper> = Mutex::new(AudioWrapper(None));
 }
-static SPRITE_COUNTER: AtomicU32 = AtomicU32::new(0);
-static GAME_RUNNING: AtomicBool = AtomicBool::new(false);
-static SCREEN_WIDTH: AtomicU32 = AtomicU32::new(800);
-static SCREEN_HEIGHT: AtomicU32 = AtomicU32::new(600);
-#[cfg(feature = "canvas")]
-static mut FRAME_COUNT: u64 = 0;
-#[cfg(feature = "canvas")]
-static mut DELTA_TIME: f64 = 0.016;
-#[cfg(feature = "canvas")]
-static mut LAST_TIME: Option<std::time::Instant> = None;
 
 #[cfg(feature = "canvas")]
 struct CanvasState {

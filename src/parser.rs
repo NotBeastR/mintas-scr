@@ -1,7 +1,7 @@
 use crate::errors::{MintasError, MintasResult, SourceLocation};
 use crate::evaluator::ClassInheritance;
 use crate::lexer::{Token, TokenWithLocation};
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Number(f64),
     String(String),
@@ -213,7 +213,7 @@ pub enum Expr {
         window_seconds: u32,
     },
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClassMember {
     Property {
         name: String,
@@ -229,7 +229,7 @@ pub enum ClassMember {
         body: Vec<Expr>,
     },
 }
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum BinaryOp {
     Add,
     Subtract,
@@ -248,7 +248,7 @@ pub enum BinaryOp {
     And,
     Or,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum UnaryOp {
     Negate,
     Not,

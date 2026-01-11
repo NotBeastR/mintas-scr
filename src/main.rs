@@ -14,7 +14,7 @@ use analyzer::CodeAnalyzer;
 use bytecode_cli::{compile_to_bytecode, run_bytecode};
 use cranelift_backend::CraneliftCompiler as JetXCompiler;
 use errors::{MintasError, MintasResult};
-use evaluator::Evaluator;
+use evaluator::{Evaluator, Value};
 use lexer::Lexer;
 use parser::Parser;
 use std::collections::VecDeque;
