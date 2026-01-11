@@ -17,31 +17,35 @@ You can install or remove Mintas using the provided shell script:
 ```bash
 # Install Mintas
 curl -sSL https://raw.githubusercontent.com/notbeastr/mintas-scr/main/install.sh | bash
+```
+```bash
 
 # Uninstall Mintas
 curl -sSL https://raw.githubusercontent.com/notbeastr/mintas-scr/main/install.sh | bash -s uninstall
 ```
 Your First Script
 Create a file named hello.as:
-
-Code snippet
+```bash
 
 say("Hello, Mintas!")
+```
+
 Run it directly:
 
-Bash
+```bash
 
 mintas run hello.as
 Secure Compilation
 Mintas features an advanced compiler that produces AES-256 Encrypted bytecode for secure distribution.
 
-Bash
 
 # Compiles hello.as to encrypted hello.ms
 mintas compile hello.as
 
 # Run the encrypted bytecode
 mintas run hello.ms
+```
+
 ✨ Features
 Expressive Syntax: Readable, human-centric keywords like say, ask, is, so, and measure.
 
