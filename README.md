@@ -1,7 +1,7 @@
 # Mintas Programming Language
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/NotBeastR/Mintas/main/logo.png" alt="Mintas Logo" width="200" />
+  <img src="[https://raw.githubusercontent.com/NotBeastR/Mintas/main/logo.png](https://cdn-icons-png.flaticon.com/512/606/606232.png)" alt="Mintas Logo" width="200" />
 </p>
 
 Mintas is a powerful, production-ready, universal polyglot programming language built from the ground up to be a "batteries-included" solution for any project. It combines the ease of scripting languages with the power of system programming.
