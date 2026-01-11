@@ -6,7 +6,7 @@ Mintas is a powerful, production-ready, universal polyglot programming language 
 
 ## 📚 Documentation
 
-**Official Documentation:** [https://github.com/NotBeastR/mintas-docs](https://github.com/NotBeastR/mintas-docs)
+**Official Documentation:** [https://github.com/NotBeastR/mintas-docs/index.html](https://github.com/NotBeastR/mintas-docs/index.html)
 # Install
 bash install.sh
 
