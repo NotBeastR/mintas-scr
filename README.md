@@ -1,61 +1,83 @@
-# Mintas Programming Language
-<p align="center" style="font-size: 300px; margin: 20px 0;">
-  🌿
-</p>
-Mintas is a powerful, production-ready, universal polyglot programming language built from the ground up to be a "batteries-included" solution for any project. It combines the ease of scripting languages with the power of system programming.
+# 🌿 Mintas Programming Language
+
+Mintas is a powerful, production-ready, universal polyglot programming language built from the ground up to be a "batteries-included" solution. It combines the ease of high-level scripting with the performance of systems programming.
 
 ## 📚 Documentation
 
-**Official Documentation:** [https://github.com/NotBeastR/mintas-docs/index.html](https://github.com/NotBeastR/mintas-docs/index.html)
-# Install
+Detailed guides and API references can be found here:
+**Official Docs:** [NotBeastR/mintas-docs](https://github.com/NotBeastR/mintas-docs)
+
+---
+
+## 🚀 Quick Start
+
+### Installation
+You can install or remove Mintas using the provided shell script:
+
+```bash
+# Install Mintas
 bash install.sh
 
-# Uninstall
+# Uninstall Mintas
 bash install.sh uninstall
-## ✨ Features
+```
+Your First Script
+Create a file named hello.as:
 
-- **Expressive Syntax**: Clean and readable syntax with unique keywords like `say`, `ask`, `is`, `so`, and `measure`.
-- **Advanced Bytecode Compiler**: Stack-based VM with `AST -> Bytecode` compilation.
-- **Secure Execution**: **AES-256 Encrypted** bytecode (`.ms` files) for secure distribution.
-- **Batteries-Included Stdlib**: 52+ built-in modules including:
-  - **Web Framework** (`dew`): Express-like HTTP server with decorators.
-  - **Networking**: HTTP, TCP/UDP, SSH, FTP, SMTP.
-  - **Databases**: SQLite, PostgreSQL, Redis.
-  - **System**: File system, process management, OS interactions.
-  - **Modern Utils**: JSON, CSV, DateTime, Cryptography, UUID, AI integration.
-- **Polyglot FFI**:
-  - `c_bytes`: Load and call C dynamic libraries (`.dll`/`.so`).
-  - `node2as`: Seamless Node.js interop.
-- **Async & Concurrency**: Built-in `task`, `worker`, and `schedule` support.
-- **Cross-Platform**: Runs on Windows, Linux, and macOS.
+Code snippet
 
-### Running Your First Script
-
-Create a file named `hello.as`:
-
-```mintas
 say("Hello, Mintas!")
-```
+Run it directly:
 
-Run it:
-```bash
+Bash
+
 mintas run hello.as
-```
+Secure Compilation
+Mintas features an advanced compiler that produces AES-256 Encrypted bytecode for secure distribution.
 
-### Compiling Code
+Bash
 
-Securely compile your script to encrypted bytecode:
-
-```bash
+# Compiles hello.as to encrypted hello.ms
 mintas compile hello.as
-# Outputs hello.ms (AES-256 Encrypted)
 
+# Run the encrypted bytecode
 mintas run hello.ms
-```
-## 🤝 Contributing
+✨ Features
+Expressive Syntax: Readable, human-centric keywords like say, ask, is, so, and measure.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Advanced VM: High-performance stack-based Virtual Machine with AST -> Bytecode pipeline.
 
-## 📄 License
+Batteries-Included Stdlib: Over 50+ built-in modules, including:
 
-This project is licensed under the MIT License.
+Web (dew): An Express-like HTTP framework with decorators.
+
+Networking: Native support for HTTP, TCP/UDP, SSH, FTP, and SMTP.
+
+Databases: Built-in drivers for SQLite, PostgreSQL, and Redis.
+
+Modern Utils: Native JSON, CSV, UUID, and AI integration.
+
+Polyglot FFI:
+
+c_bytes: Call C dynamic libraries (.dll/.so) directly.
+
+node2as: Seamless Node.js interoperability.
+
+Concurrency: Built-in support for task, worker, and schedule.
+
+Cross-Platform: Full support for Windows, Linux, and macOS.
+
+🤝 Contributing
+Contributions make the open-source community an amazing place to learn, inspire, and create. Any contributions you make are greatly appreciated.
+
+Fork the Project
+
+Create your Feature Branch (git checkout -b feature/AmazingFeature)
+
+Commit your Changes (git commit -m 'Add some AmazingFeature')
+
+Push to the Branch (git push origin feature/AmazingFeature)
+
+Open a Pull Request
+📄 License
+Distributed under the Apache License. See LICENSE for more information.
