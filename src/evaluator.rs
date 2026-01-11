@@ -195,7 +195,7 @@ pub struct Function {
     #[allow(dead_code)]
     pub is_lambda: bool,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClassInheritance {
     None,
     Extends(String),
@@ -228,6 +228,7 @@ pub enum Value {
     ExitSignal,
     ProceedSignal,
     ReturnSignal(Box<Value>),
+    Null,
 }
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {
@@ -246,6 +247,7 @@ impl PartialEq for Value {
             (Value::ExitSignal, Value::ExitSignal) => true,
             (Value::ProceedSignal, Value::ProceedSignal) => true,
             (Value::ReturnSignal(a), Value::ReturnSignal(b)) => a == b,
+            (Value::Null, Value::Null) => true,
             _ => false,
         }
     }
@@ -268,6 +270,7 @@ impl Value {
             Value::ExitSignal => "exit",
             Value::ProceedSignal => "proceed",
             Value::ReturnSignal(_) => "return",
+            Value::Null => "null",
         }
     }
     #[inline]
@@ -297,6 +300,7 @@ impl Value {
             Value::SuperSet(val) => val.is_truthy_in_condition(),
             Value::Function(_) | Value::Class(_) | Value::Instance(_) => Value::Boolean(true),
             Value::ExitSignal | Value::ProceedSignal | Value::ReturnSignal(_) => Value::Boolean(false),
+            Value::Null => Value::Boolean(false),
         }
     }
 }

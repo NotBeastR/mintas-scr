@@ -13,7 +13,7 @@ type Aes256CbcDec = Decryptor<Aes256>;
 
 const MAGIC: &[u8; 8] = b"MINTAS\0\0";
 const VERSION: u32 = 1;
-const DEFAULT_AES_KEY: &[u8; 32] = b"MINTAS_ENCRYPTION_KEY_V1_2026!!"; // 32 bytes for fallback
+const DEFAULT_AES_KEY: &[u8; 32] = b"MINTAS_ENCRYPTION_KEY_V1_2026!!!"; // 32 bytes for fallback
 
 /// Derby a 32-byte key from a user string using SHA-256
 fn derive_key(secret: Option<&str>) -> [u8; 32] {
@@ -56,7 +56,7 @@ pub fn save_encrypted_bytecode(program: &BytecodeProgram, path: &str, secret: Op
 
     // Encrypt
     let cipher = Aes256CbcEnc::new(&key.into(), &iv.into());
-    let ciphertext = cipher.encrypt_padded_vec_mut::<cbc::cipher::block_padding::Pkcs7>(&padded)
+    let ciphertext = cipher.encrypt_padded_mut::<cbc::cipher::block_padding::Pkcs7>(&mut padded, plaintext.len())
         .map_err(|e| MintasError::RuntimeError {
             message: format!("Encryption failed: {}", e),
             location: SourceLocation::new(0, 0),
@@ -76,7 +76,7 @@ pub fn save_encrypted_bytecode(program: &BytecodeProgram, path: &str, secret: Op
     
     // IV and ciphertext
     file.write_all(&iv)?;
-    file.write_all(&ciphertext)?;
+    file.write_all(ciphertext)?;
     
     Ok(())
 }
@@ -125,14 +125,14 @@ pub fn load_encrypted_bytecode(path: &str, secret: Option<&str>) -> MintasResult
 
     // Decrypt
     let cipher = Aes256CbcDec::new(&key.into(), &iv.into());
-    let plaintext = cipher.decrypt_padded_vec_mut::<cbc::cipher::block_padding::Pkcs7>(&ciphertext)
+    let plaintext = cipher.decrypt_padded_mut::<cbc::cipher::block_padding::Pkcs7>(&mut ciphertext)
         .map_err(|e| MintasError::RuntimeError {
             message: format!("Decryption failed: (Invalid Key?) {}", e),
             location: SourceLocation::new(0, 0),
         })?;
     
     // Deserialize
-    let json = String::from_utf8(plaintext)
+    let json = String::from_utf8(plaintext.to_vec())
         .map_err(|e| MintasError::RuntimeError {
             message: format!("Invalid UTF-8 in decrypted data: {}", e),
             location: SourceLocation::new(0, 0),

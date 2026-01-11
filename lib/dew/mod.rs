@@ -1326,7 +1326,7 @@ impl DewModule {
         let key = match args.get(1) { Some(Value::String(s)) => s, _ => return Ok(Value::Null) };
         
         // This blocks, but it's okay for now
-        let client = redis::Client::open(url.as_str()).map_err(|e| MintasError::RuntimeError { message: format!("Redis Error: {}",e), location: SourceLocation::new(0,0)})?;
+        let client = redis::Client::open(url.as_ref()).map_err(|e| MintasError::RuntimeError { message: format!("Redis Error: {}",e), location: SourceLocation::new(0,0)})?;
         let mut con = client.get_connection().map_err(|e| MintasError::RuntimeError { message: format!("Redis Error: {}",e), location: SourceLocation::new(0,0)})?;
         let result: Option<String> = con.get(key).ok();
         
@@ -1344,7 +1344,7 @@ impl DewModule {
         let key = match args.get(1) { Some(Value::String(s)) => s, _ => return Ok(Value::Boolean(false)) };
         let val = match args.get(2) { Some(Value::String(s)) => s, _ => return Ok(Value::Boolean(false)) };
         
-        let client = redis::Client::open(url.as_str()).map_err(|e| MintasError::RuntimeError { message: format!("Redis Error: {}",e), location: SourceLocation::new(0,0)})?;
+        let client = redis::Client::open(url.as_ref()).map_err(|e| MintasError::RuntimeError { message: format!("Redis Error: {}",e), location: SourceLocation::new(0,0)})?;
         let mut con = client.get_connection().map_err(|e| MintasError::RuntimeError { message: format!("Redis Error: {}",e), location: SourceLocation::new(0,0)})?;
         let _: () = con.set(key, val).map_err(|e| MintasError::RuntimeError { message: format!("Redis Error: {}",e), location: SourceLocation::new(0,0)})?;
         Ok(Value::Boolean(true))
@@ -3799,6 +3799,11 @@ fn generate_websocket_accept_key(key: &str) -> String {
     BASE64.encode(hasher.finalize())
 }
 
+fn generate_csrf_token() -> String {
+    use uuid::Uuid;
+    Uuid::new_v4().to_string()
+}
+
 fn sanitize_html(input: &str) -> String {
     input
         .replace('&', "&amp;")
@@ -4018,7 +4023,7 @@ fn handle_request(request_str: &str, server: &DewServer) -> (String, String) {
                 }
                 Err(e) => {
                      let elapsed = start_time.elapsed().as_micros();
-                     return (http_response(500, "text/plain", &e, &[]), 
+                     return (http_response(500, "text/plain", &format!("{}", e), &[]), 
                              format!("{} {} 500 (middleware error) {}µs", method, path, elapsed));
                 }
             }
@@ -4040,7 +4045,9 @@ fn handle_request(request_str: &str, server: &DewServer) -> (String, String) {
             let mut getback = Getback::new();
             getback.method = method.to_string();
             getback.path = path.to_string();
-            let response = execute_handler(&error_handler.handler_body, getback);
+            let response = execute_handler(&error_handler.handler_body, getback).unwrap_or_else(|e| {
+                http_response(500, "text/plain", &format!("Error in error handler: {}", e), &[])
+            });
             let elapsed = start_time.elapsed().as_micros();
             return (response, format!("{} {} 404 (custom) {}µs", method, path, elapsed));
         }

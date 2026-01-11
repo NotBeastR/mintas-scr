@@ -25,7 +25,7 @@ impl GraphqlModule {
         Ok(Value::Table(client))
     }
     fn query(args: &[Value]) -> MintasResult<Value> {
-        let _url = match args.get(0) { Some(Value::String(s)) => s.clone(), _ => return Ok(Value::Empty) };
+        let url = match args.get(0) { Some(Value::String(s)) => s.clone(), _ => return Ok(Value::Empty) };
         let query = match args.get(1) { Some(Value::String(s)) => s.clone(), _ => return Ok(Value::Empty) };
         let variables = match args.get(2) { Some(Value::Table(t)) => t.clone(), _ => HashMap::new() };
         let mut body = HashMap::new();

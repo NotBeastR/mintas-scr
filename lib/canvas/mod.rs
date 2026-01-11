@@ -24,6 +24,14 @@ static mut CANVAS_STATE: Option<CanvasState> = None;
 static mut SPRITES: Option<HashMap<String, Sprite>> = None;
 #[cfg(feature = "canvas")]
 static mut TEXTURES: Option<HashMap<String, Texture>> = None; // Store textures
+// Global State Variables - Required for Canvas
+static mut SCREEN_WIDTH: AtomicU32 = AtomicU32::new(800);
+static mut SCREEN_HEIGHT: AtomicU32 = AtomicU32::new(600);
+static mut GAME_RUNNING: AtomicBool = AtomicBool::new(false);
+static mut SPRITE_COUNTER: AtomicU32 = AtomicU32::new(0);
+static mut FRAME_COUNT: u64 = 0;
+static mut LAST_TIME: Option<std::time::Instant> = None;
+static mut DELTA_TIME: f64 = 0.0;
 #[cfg(feature = "canvas")]
 // Audio wrapper to satisfy Send
 struct AudioWrapper(Option<(OutputStream, rodio::OutputStreamHandle)>);
@@ -272,6 +280,7 @@ impl CanvasModule {
                 mouse_down: [false; 3], mouse_clicked: [false; 3],
                 camera_x: 0.0, camera_y: 0.0,
                 sinks: Vec::new(),
+                mouse_x: 0.0, mouse_y: 0.0,
             });
             SPRITES = Some(HashMap::new());
             TEXTURES = Some(HashMap::new());
@@ -281,9 +290,9 @@ impl CanvasModule {
             
             // Init Audio
             let mut stream_lock = AUDIO_STREAM.lock().unwrap();
-            if stream_lock.is_none() {
+            if stream_lock.0.is_none() {
                 if let Ok((stream, handle)) = OutputStream::try_default() {
-                    *stream_lock = Some((stream, handle));
+                    *stream_lock = AudioWrapper(Some((stream, handle)));
                 } else {
                     println!("[Canvas] Warning: Audio device not found");
                 }
@@ -1299,7 +1308,7 @@ impl CanvasModule {
             let source = Decoder::new(std::io::BufReader::new(file)).ok();
             if let Some(source) = source {
                 let stream_lock = AUDIO_STREAM.lock().unwrap();
-                if let Some((_, handle)) = &*stream_lock {
+                if let Some((_, handle)) = &stream_lock.0 {
                     if let Ok(sink) = Sink::try_new(handle) {
                         sink.append(source);
                         unsafe {
