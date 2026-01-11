@@ -16,10 +16,10 @@ You can install or remove Mintas using the provided shell script:
 
 ```bash
 # Install Mintas
-bash install.sh
+curl -sSL https://raw.githubusercontent.com/notbeastr/mintas-scr/main/install.sh | bash
 
 # Uninstall Mintas
-bash install.sh uninstall
+curl -sSL https://raw.githubusercontent.com/notbeastr/mintas-scr/main/install.sh | bash -s uninstall
 ```
 Your First Script
 Create a file named hello.as:
