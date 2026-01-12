@@ -349,6 +349,9 @@ fn execute_interpreter_timed(statements: &[parser::Expr], evaluator: &mut Evalua
     for stmt in statements {
         match evaluator.eval(stmt) {
             Ok(val) => {
+                if matches!(val, Value::ExitSignal) {
+                    return Ok(Value::ExitSignal);
+                }
                 last_val = val.clone();
                 if should_display(&val, stmt) {
                     evaluator.print_value(&val);
@@ -416,7 +419,7 @@ fn should_display(val: &Value, stmt: &parser::Expr) -> bool {
 
 fn print_jetx_stats(stats: &JetXStats, total_us: u64) {
     println!("\n╔══════════════════════════════════════════════════╗");
-    println!("║              JetX Performance Report             ║");
+    println!("║              Mintas Performance Report             ║");
     println!("╠══════════════════════════════════════════════════╣");
     println!("║ Statements:              {:>20} ║", stats.total_statements);
     println!("║ JetX Compiled:           {:>20} ║", if stats.jetx_compiled { "Yes" } else { "No" });
@@ -524,8 +527,6 @@ fn print_help() {
     println!("  run <file.ms>              Run encrypted bytecode file");
     println!();
     println!("XDBX COMMANDS (Build System):");
-    println!("  xdbx build [--release]     Build project to executable");
-    println!("  xdbx build --target <t>    Build for target (exe/wasm/deb/pkg)");
     println!("  xdbx run [file]            Run project");
     println!("  xdbx test                  Run tests");
     println!("  xdbx targets               List build targets");
@@ -534,8 +535,6 @@ fn print_help() {
     println!("EXAMPLES:");
     println!("  mintas app.as              Run a Mintas script");
     println!("  mintas app.as arg1 arg2    Run with arguments");
-    println!("  mintas xdbx build --exe    Build Windows executable");
-    println!("  mintas xdbx build --wasm   Build WebAssembly");
 }
 
 fn run_file(path: &str, show_stats: bool, check_only: bool, debug_mode: bool, force_jetx: bool) {
@@ -650,6 +649,7 @@ fn run_repl() {
         
         match input {
             "exit" | "quit" => {
+                let _ = evaluator.flush_all_buffers();
                 println!("\n\x1b[1;32m✓\x1b[0m Goodbye! Thanks for using Mintas.\n");
                 break;
             }
@@ -701,6 +701,7 @@ fn run_repl() {
         
         match execute_jetx(input, &mut evaluator, false, false) {
             Ok(Value::ExitSignal) => {
+                let _ = evaluator.flush_all_buffers();
                 println!("\n\x1b[1;32m✓\x1b[0m Goodbye! Thanks for using Mintas.\n");
                 break;
             }
@@ -710,7 +711,6 @@ fn run_repl() {
             }
         }
     }
-    println!("Goodbye!");
 }
 
 /// Handle XDBX CLI commands - Package Manager & Build System

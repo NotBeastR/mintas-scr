@@ -3450,12 +3450,10 @@ impl Evaluator {
                         message: format!("Output error: {}", e),
                         location: Self::default_location(),
                     })?;
-                    if stdout.buffer().len() > 7000 {
-                        stdout.flush().map_err(|e| MintasError::RuntimeError {
-                            message: format!("Output flush error: {}", e),
-                            location: Self::default_location(),
-                        })?;
-                    }
+                    stdout.flush().map_err(|e| MintasError::RuntimeError {
+                        message: format!("Output flush error: {}", e),
+                        location: Self::default_location(),
+                    })?;
                 }
                 Ok(val)
             }
