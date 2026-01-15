@@ -640,12 +640,16 @@ fn check_code(code: &str, file_path: &str) {
 }
 
 fn run_repl() {
+    let jetx_available = JetXCompiler::new().is_ok();
+    let mode_label = if jetx_available { "JetX JIT Compiler" } else { "Interpreter Mode" };
+    let mode_color = if jetx_available { "\x1b[1;33m" } else { "\x1b[1;34m" };
+
     println!("\x1b[1;36m╔═══════════════════════════════════════════════════════════╗\x1b[0m");
-    println!("\x1b[1;36m║\x1b[0m          \x1b[1;35mMintas v1.0.0\x1b[0m with \x1b[1;33mJetX JIT Compiler\x1b[0m         \x1b[1;36m║\x1b[0m");
+    println!("\x1b[1;36m║\x1b[0m   \x1b[1;35mMintas v{}\x1b[0m with {}{}\x1b[0m                 \x1b[1;36m║\x1b[0m", env!("CARGO_PKG_VERSION"), mode_color, mode_label);
     println!("\x1b[1;36m╚═══════════════════════════════════════════════════════════╝\x1b[0m");
     println!();
-    println!("  \x1b[1;32m●\x1b[0m Type \x1b[1;33m'help'\x1b[0m for available commands");
-    println!("  \x1b[1;32m●\x1b[0m Type \x1b[1;33m'exit'\x1b[0m or \x1b[1;33m'quit'\x1b[0m to leave");
+    println!("  \x1b[1;32m●\x1b[0m Type \x1b[1;33mhelp\x1b[0m for available commands");
+    println!("  \x1b[1;32m●\x1b[0m Type \x1b[1;33mexit\x1b[0m or \x1b[1;33mquit\x1b[0m to leave");
     println!("  \x1b[1;32m●\x1b[0m Press \x1b[1;33mCtrl+C\x1b[0m to interrupt");
     println!();
     
@@ -653,7 +657,8 @@ fn run_repl() {
     let mut history: VecDeque<String> = VecDeque::with_capacity(100);
     
     loop {
-        print!("\x1b[1;36m❯\x1b[0m ");
+        let prompt_mode = if jetx_available { "JIT" } else { "INT" };
+        print!("\x1b[1;36m[{}]\x1b[0m ❯ ", prompt_mode);
         io::stdout().flush().unwrap();
         
         let mut input = String::new();
@@ -678,6 +683,10 @@ fn run_repl() {
                 println!("  \x1b[1;36mvars\x1b[0m      - List all variables");
                 println!("  \x1b[1;36mexit\x1b[0m      - Exit the REPL");
                 println!("  \x1b[1;36mquit\x1b[0m      - Exit the REPL");
+                println!("\n  \x1b[1;33mExamples:\x1b[0m");
+                println!("    \x1b[36msay(\"Hello\")\x1b[0m");
+                println!("    \x1b[36mx = 42\x1b[0m");
+                println!("    \x1b[36mx + 8\x1b[0m");
                 println!("\n  \x1b[1;33mTip:\x1b[0m Use \x1b[1;36mmintas --help\x1b[0m from shell for full CLI options");
                 println!();
                 continue;
@@ -722,7 +731,7 @@ fn run_repl() {
             }
             Ok(_) => {}
             Err(e) => {
-                eprintln!("Error: {}", e);
+                eprintln!("\x1b[31m✗ Error:\x1b[0m {}", e);
             }
         }
     }
@@ -1145,6 +1154,8 @@ fn copy_dir_recursive(src: &str, dst: &str) {
                 copy_dir_recursive(&path.to_string_lossy(), &dest_path);
             } else {
                 fs::copy(&path, &dest_path).ok();
+            }
+        }
     }
 }
 
@@ -1167,188 +1178,6 @@ fn compile_to_ms_format(output: &str, project_name: &str, source: &str, _release
     Ok(())
 }
 
-fn collect_includes(source: &str, sources: &mut Vec<(String, String)>) {
-int var_count = 0;
-
-Variable* get_var(const char* name) {{
-    for (int i = 0; i < var_count; i++) {{
-        if (strcmp(variables[i].name, name) == 0) return &variables[i];
-    }}
-    return NULL;
-}}
-
-Variable* set_var(const char* name, double value) {{
-    Variable* v = get_var(name);
-    if (!v) {{
-        v = &variables[var_count++];
-        strncpy(v->name, name, 255);
-    }}
-    v->num_value = value;
-    v->is_string = 0;
-    return v;
-}}
-
-Variable* set_str_var(const char* name, const char* value) {{
-    Variable* v = get_var(name);
-    if (!v) {{
-        v = &variables[var_count++];
-        strncpy(v->name, name, 255);
-    }}
-    strncpy(v->str_value, value, 4095);
-    v->is_string = 1;
-    return v;
-}}
-
-void trim(char* str) {{
-    char* start = str;
-    while (*start == ' ' || *start == '\t') start++;
-    if (start != str) memmove(str, start, strlen(start) + 1);
-    char* end = str + strlen(str) - 1;
-    while (end > str && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) *end-- = '\0';
-}}
-
-double eval_expr(const char* expr);
-
-double eval_expr(const char* expr) {{
-    char buf[1024];
-    strncpy(buf, expr, 1023);
-    trim(buf);
-    
-    // Check for variable
-    Variable* v = get_var(buf);
-    if (v && !v->is_string) return v->num_value;
-    
-    // Check for number
-    char* end;
-    double val = strtod(buf, &end);
-    if (*end == '\0') return val;
-    
-    // Check for simple arithmetic
-    char* op = NULL;
-    char oper = 0;
-    for (char* p = buf + strlen(buf) - 1; p > buf; p--) {{
-        if (*p == '+' || *p == '-') {{ op = p; oper = *p; break; }}
-    }}
-    if (!op) {{
-        for (char* p = buf + strlen(buf) - 1; p > buf; p--) {{
-            if (*p == '*' || *p == '/') {{ op = p; oper = *p; break; }}
-        }}
-    }}
-    
-    if (op) {{
-        *op = '\0';
-        double left = eval_expr(buf);
-        double right = eval_expr(op + 1);
-        switch (oper) {{
-            case '+': return left + right;
-            case '-': return left - right;
-            case '*': return left * right;
-            case '/': return right != 0 ? left / right : 0;
-        }}
-    }}
-    
-    return 0;
-}}
-
-void execute_line(const char* line) {{
-    char buf[4096];
-    strncpy(buf, line, 4095);
-    trim(buf);
-    
-    // Skip comments and empty lines
-    if (buf[0] == '#' || buf[0] == '\0') return;
-    if (strncmp(buf, "include ", 8) == 0) return;
-    if (strcmp(buf, "end") == 0) return;
-    
-    // Handle say()
-    if (strncmp(buf, "say(", 4) == 0) {{
-        char* start = buf + 4;
-        char* end = strrchr(buf, ')');
-        if (end) *end = '\0';
-        
-        // Check for string literal
-        if (*start == '"' || *start == '\'') {{
-            start++;
-            char* quote_end = strrchr(start, *start == '"' ? '"' : '\'');
-            if (quote_end) *quote_end = '\0';
-            printf("%s\n", start);
-        }} else {{
-            // Variable or expression
-            Variable* v = get_var(start);
-            if (v) {{
-                if (v->is_string) printf("%s\n", v->str_value);
-                else printf("%g\n", v->num_value);
-            }} else {{
-                printf("%g\n", eval_expr(start));
-            }}
-        }}
-        return;
-    }}
-    
-    // Handle assignment
-    char* eq = strchr(buf, '=');
-    if (eq && eq > buf && *(eq-1) != '!' && *(eq-1) != '<' && *(eq-1) != '>') {{
-        *eq = '\0';
-        char* name = buf;
-        char* value = eq + 1;
-        trim(name);
-        trim(value);
-        
-        if (*value == '"' || *value == '\'') {{
-            value++;
-            char* end = strrchr(value, *value == '"' ? '"' : '\'');
-            if (end) *end = '\0';
-            set_str_var(name, value);
-        }} else {{
-            set_var(name, eval_expr(value));
-        }}
-        return;
-    }}
-}}
-
-void run_mintas(const char* code) {{
-    char* source = strdup(code);
-    char* line = strtok(source, "\n");
-    
-    while (line) {{
-        execute_line(line);
-        line = strtok(NULL, "\n");
-    }}
-    
-    free(source);
-}}
-
-int main(int argc, char* argv[]) {{
-    printf("=== %s ===\n", PROJECT_NAME);
-    if (USES_CANVAS) {{
-        printf("[Canvas mode - graphics not available in standalone build]\n");
-    }}
-    printf("\n");
-    
-    run_mintas(MINTAS_SOURCE);
-    
-    return 0;
-}}
-"#, source = escaped_source, name = project_name, canvas = if uses_canvas { 1 } else { 0 });
-
-    // Write C source file
-    let c_file = format!("{}/main.c", build_dir);
-    fs::write(&c_file, &c_code).ok();
-    
-    // Also save the original .as source
-    fs::write(format!("{}/source.as", build_dir), source).ok();
-    
-    // Try to compile with available C compiler
-    let compile_result = compile_c_to_exe(&c_file, output, release);
-    
-    if compile_result {
-        println!("      \x1b[32m✓ Created native executable\x1b[0m");
-    } else {
-        // Fallback: create distribution package
-        println!("      \x1b[33m⚠ C compiler not found, creating distribution package\x1b[0m");
-        create_distribution_package(output, project_name, source, uses_canvas);
-    }
-}
 
 /// Try to compile C code to executable using available compiler
 fn compile_c_to_exe(c_file: &str, output: &str, release: bool) -> bool {
