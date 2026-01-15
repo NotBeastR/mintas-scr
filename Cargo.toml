@@ -1,6 +1,6 @@
 [package]
 name = "mintas"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 description = "Mintas: A modern, high-performance programming language with JetX JIT compiler"
 license = "Apache-2.0"
