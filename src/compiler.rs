@@ -188,6 +188,8 @@ impl BytecodeCompiler {
         let jump_to_end = self.program.current_index();
         self.program.emit(Instruction::Jump(0)); // Placeholder
         
+        let mut end_jumps = vec![jump_to_end];
+        
         // Patch jump to else
         let else_start = self.program.current_index();
         self.program.patch_jump(jump_to_else, else_start);
@@ -207,6 +209,7 @@ impl BytecodeCompiler {
             
             let elif_end_jump = self.program.current_index();
             self.program.emit(Instruction::Jump(0));
+            end_jumps.push(elif_end_jump);
             
             let next_elif = self.program.current_index();
             self.program.patch_jump(elif_jump, next_elif);
@@ -226,7 +229,9 @@ impl BytecodeCompiler {
         
         // Patch jump to end
         let end = self.program.current_index();
-        self.program.patch_jump(jump_to_end, end);
+        for jump in end_jumps {
+            self.program.patch_jump(jump, end);
+        }
         
         Ok(())
     }

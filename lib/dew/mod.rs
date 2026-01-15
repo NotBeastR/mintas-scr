@@ -716,7 +716,7 @@ impl DewModule {
         };
         let message = match args.get(1) {
             Some(Value::String(s)) => s.clone(),
-            Some(Value::Table(t)) => value_to_json(&Value::Table(t.clone())),
+            Some(Value::Table(t)) => value_to_json_string(&Value::Table(t.clone())),
             _ => return Ok(Value::Boolean(false)),
         };
         println!("📤 WS Send: {}", message);
@@ -725,7 +725,7 @@ impl DewModule {
     fn ws_broadcast(args: &[Value]) -> MintasResult<Value> {
         let message = match args.get(0) {
             Some(Value::String(s)) => s.clone(),
-            Some(Value::Table(t)) => value_to_json(&Value::Table(t.clone())),
+            Some(Value::Table(t)) => value_to_json_string(&Value::Table(t.clone())),
             _ => return Ok(Value::Boolean(false)),
         };
         println!("📢 WS Broadcast: {}", message);
@@ -1162,7 +1162,7 @@ impl DewModule {
         };
         let message = match args.get(1) {
             Some(Value::String(s)) => s.clone(),
-            Some(Value::Table(t)) => value_to_json(&Value::Table(t.clone())),
+            Some(Value::Table(t)) => value_to_json_string(&Value::Table(t.clone())),
             _ => return Ok(Value::Boolean(false)),
         };
         let rooms = WS_ROOMS.lock().unwrap();
@@ -1242,8 +1242,8 @@ impl DewModule {
     }
     fn response_json(args: &[Value]) -> MintasResult<Value> {
         let body = match args.get(0) {
-            Some(Value::Table(t)) => value_to_json(&Value::Table(t.clone())),
-            Some(Value::Array(a)) => value_to_json(&Value::Array(a.clone())),
+            Some(Value::Table(t)) => value_to_json_string(&Value::Table(t.clone())),
+            Some(Value::Array(a)) => value_to_json_string(&Value::Array(a.clone())),
             Some(Value::String(s)) => s.clone(),
             _ => "{}".to_string(),
         };
@@ -1957,7 +1957,7 @@ impl DewModule {
             _ => "form".to_string(),
         };
         
-        let validation_rules = match args.get(1) {
+        let _validation_rules = match args.get(1) {
             Some(Value::Table(t)) => t.clone(),
             _ => HashMap::new(),
         };
@@ -4215,12 +4215,12 @@ fn value_to_string(value: &Value) -> String {
             let items: Vec<String> = arr.iter().map(value_to_string).collect();
             format!("[{}]", items.join(", "))
         }
-        Value::Table(t) => value_to_json(&Value::Table(t.clone())),
+        Value::Table(t) => value_to_json_string(&Value::Table(t.clone())),
         Value::Empty => String::new(),
         _ => format!("{:?}", value),
     }
 }
-fn value_to_json(value: &Value) -> String {
+fn value_to_json_string(value: &Value) -> String {
     match value {
         Value::String(s) => format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\"")),
         Value::Number(n) => {
@@ -4232,13 +4232,13 @@ fn value_to_json(value: &Value) -> String {
         }
         Value::Boolean(b) => b.to_string(),
         Value::Array(arr) => {
-            let items: Vec<String> = arr.iter().map(value_to_json).collect();
+            let items: Vec<String> = arr.iter().map(value_to_json_string).collect();
             format!("[{}]", items.join(","))
         }
         Value::Table(t) => {
             let pairs: Vec<String> = t.iter()
                 .filter(|(k, _)| !k.starts_with("__"))
-                .map(|(k, v)| format!("\"{}\":{}", k, value_to_json(v)))
+                .map(|(k, v)| format!("\"{}\":{}", k, value_to_json_string(v)))
                 .collect();
             format!("{{{}}}", pairs.join(","))
         }
@@ -4892,7 +4892,7 @@ fn process_return_value(value: &Value, cookies: &[String]) -> String {
             return http_response(status, content_type, &body, cookies);
         }
     }
-    let body = value_to_json(value);
+    let body = value_to_json_string(value);
     http_response(200, "application/json; charset=utf-8", &body, cookies)
 }
 

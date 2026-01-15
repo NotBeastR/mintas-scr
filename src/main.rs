@@ -1159,7 +1159,7 @@ fn copy_dir_recursive(src: &str, dst: &str) {
 }
 
 /// Compile Mintas source to .MS (Mintas Serialized) bytecode format
-fn compile_to_ms_format(output: &str, project_name: &str, source: &str, _release: bool) -> Result<(), String> {
+fn compile_to_ms_format(output: &str, _project_name: &str, source: &str, _release: bool) -> Result<(), String> {
     // Compile to bytecode using the bytecode compiler
     let mut lexer = Lexer::new(source);
     let tokens = lexer.tokenize().map_err(|e| format!("Lexer error: {}", e))?;
