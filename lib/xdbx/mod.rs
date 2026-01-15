@@ -347,9 +347,9 @@ impl XdbxModule {
         }
         let toml_content = format!(r#"[project]
 name = "{}"
-version = "1.0.0"
+version = "1.0.3"
 type = "{}"
-entry = "src/main.mintas"
+entry = "src/main.as"
 [dependencies]
 [dev-dependencies]
 [build]
@@ -590,8 +590,8 @@ say "Hello, World!"
         Ok(Value::Boolean(true))
     }
     fn version(_args: &[Value]) -> MintasResult<Value> {
-        println!("xdbx v1.0.0 - Mintas Debugger & Package Manager");
-        Ok(Value::String("1.0.0".to_string()))
+        println!("xdbx v1.0.3 - Mintas Debugger & Package Manager");
+        Ok(Value::String("1.0.3".to_string()))
     }
     fn config(args: &[Value]) -> MintasResult<Value> {
         let key = Self::get_str(args, 0, "");

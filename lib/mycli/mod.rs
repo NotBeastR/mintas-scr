@@ -179,7 +179,7 @@ impl MyCLIModule {
         let mut app = HashMap::new();
         app.insert("name".to_string(), Value::String(name));
         app.insert("description".to_string(), Value::String(description));
-        app.insert("version".to_string(), Value::String("1.0.0".to_string()));
+        app.insert("version".to_string(), Value::String("1.0.3".to_string()));
         app.insert("commands".to_string(), Value::Array(Vec::new()));
         app.insert("options".to_string(), Value::Array(Vec::new()));
         Ok(Value::Table(app))
@@ -228,7 +228,7 @@ impl MyCLIModule {
         let ver = args.get(0).and_then(|v| match v {
             Value::String(s) => Some(s.clone()),
             _ => None,
-        }).unwrap_or_else(|| "1.0.0".to_string());
+        }).unwrap_or_else(|| "1.0.3".to_string());
         Ok(Value::String(ver))
     }
     fn help(_args: &[Value]) -> MintasResult<Value> {

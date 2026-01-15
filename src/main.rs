@@ -459,7 +459,7 @@ fn main() {
     let mut default_repl_mode = None;
     
     if args.len() < 2 {
-        run_repl(default_repl_mode);
+        run_repl(default_repl_mode, force_jetx);
         return;
     }
     
@@ -482,7 +482,7 @@ fn main() {
         match args[i].as_str() {
             "-h" | "--help" => { print_help(); return; }
             "-v" | "--version" => {
-                println!("Mintas v1.0.0 with JetX JIT Compiler");
+                println!("Mintas v1.0.3 with JetX JIT Compiler");
                 return;
             }
             "-s" | "--stats" => show_stats = true,
@@ -540,12 +540,12 @@ fn main() {
     if let Some(path) = file_path {
         run_file(path, show_stats, check_only, debug_mode, force_jetx);
     } else {
-        run_repl(default_repl_mode);
+        run_repl(default_repl_mode, force_jetx);
     }
 }
 
 fn print_help() {
-    println!("Mintas v1.0.0 with JetX JIT Compiler");
+    println!("Mintas v1.0.3 with JetX JIT Compiler");
     println!();
     println!("USAGE: mintas [OPTIONS] [FILE] [ARGS...]");
     println!("       mintas xdbx <COMMAND> [ARGS]");
@@ -615,7 +615,7 @@ fn run_file(path: &str, show_stats: bool, check_only: bool, debug_mode: bool, fo
 }
 
 fn check_code(code: &str, file_path: &str) {
-    println!("Mintas Code Analyzer v1.0.0");
+    println!("Mintas Code Analyzer v1.0.3");
     println!("Analyzing: {}", file_path);
     println!("════════════════════════════════════════════════════");
     
@@ -660,10 +660,10 @@ fn check_code(code: &str, file_path: &str) {
     println!("Ready. {} statements.", statements.len());
 }
 
-fn run_repl(default_mode: Option<String>) {
+fn run_repl(default_mode: Option<String>, force_jetx_cli: bool) {
     let jetx_available = JetXCompiler::new().is_ok();
     let force_interpreter = default_mode.as_deref() == Some("interpreter") || default_mode.as_deref() == Some("int");
-    let force_jetx = default_mode.as_deref() == Some("jetx") && jetx_available;
+    let force_jetx = force_jetx_cli || (default_mode.as_deref() == Some("jetx") && jetx_available);
     
     let mode_label = match (force_interpreter, force_jetx, jetx_available) {
         (true, _, _) => "Interpreter Mode",
@@ -687,7 +687,7 @@ fn run_repl(default_mode: Option<String>) {
     
     loop {
         let prompt_mode = if force_interpreter { "INT" } else if jetx_available { "JIT" } else { "INT" };
-        print!("\x1b[1;36m[{}]\x1b[0m ❯ ", prompt_mode);
+        print!("\x1b[1;36m[{}]\x1b[0m >> ", prompt_mode);
         io::stdout().flush().unwrap();
         
         let mut input = String::new();
@@ -816,7 +816,7 @@ fn handle_xdbx_command(args: &[String]) {
         "test" => xdbx_test(),
         "targets" => xdbx_targets(),
         "version" | "-v" | "--version" => {
-            println!("xdbx v1.0.1 - Mintas Build System");
+            println!("xdbx v1.0.3 - Mintas Build System");
         }
         "help" | "-h" | "--help" => print_xdbx_help(),
         _ => {
@@ -1529,7 +1529,7 @@ fn create_real_deb(output: &str, project_name: &str, source: &str, uses_canvas: 
     
     // Control file
     let control = format!(r#"Package: {}
-Version: 1.0.0
+Version: 1.0.3
 Section: utils
 Priority: optional
 Architecture: amd64
@@ -1653,9 +1653,9 @@ fn create_real_pkg(output: &str, project_name: &str, source: &str, uses_canvas: 
     <key>CFBundleName</key>
     <string>{}</string>
     <key>CFBundleVersion</key>
-    <string>1.0.0</string>
+    <string>1.0.3</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>1.0.3</string>
     <key>LSMinimumSystemVersion</key>
     <string>10.13</string>
     {}
@@ -1684,7 +1684,7 @@ chmod +x /usr/local/bin/{}
     pkg_content.extend_from_slice(&[0x00, 0x01]); // version
     
     // Embed the source and metadata
-    let metadata = format!("MINTAS_PKG\nNAME={}\nVERSION=1.0.0\nCANVAS={}\n---\n{}",         project_name, uses_canvas, source);
+    let metadata = format!("MINTAS_PKG\nNAME={}\nVERSION=1.0.3\nCANVAS={}\n---\n{}",         project_name, uses_canvas, source);
     pkg_content.extend_from_slice(metadata.as_bytes());
     
     fs::write(output, &pkg_content).ok();
