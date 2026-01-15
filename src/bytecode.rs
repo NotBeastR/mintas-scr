@@ -97,6 +97,11 @@ impl BytecodeProgram {
         }
     }
     
+    /// Serialize program to bytes (.MS format)
+    pub fn to_bytes(&self) -> Vec<u8> {
+        serde_json::to_vec(self).unwrap_or_else(|_| Vec::new())
+    }
+    
     /// Add a constant to the pool and return its index
     pub fn add_constant(&mut self, constant: Constant) -> usize {
         // Check if constant already exists

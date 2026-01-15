@@ -8,6 +8,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use chrono::Utc;
 use serde_json;
+use serde_json::{Value as JsonValue, Number as JsonNumber};
 #[cfg(feature = "database")]
 use rusqlite::{Connection, params};
 #[cfg(feature = "database")]
@@ -26,6 +27,33 @@ use hmac::{Hmac, Mac};
 use hex;
 #[cfg(feature = "magic")]
 use csv;
+
+fn value_to_json(v: &crate::evaluator::Value) -> JsonValue {
+    use crate::evaluator::Value as V;
+    match v {
+        V::Number(n) => JsonNumber::from_f64(*n).map(JsonValue::Number).unwrap_or(JsonValue::Null),
+        V::String(s) => JsonValue::String(s.clone()),
+        V::Boolean(b) => JsonValue::Bool(*b),
+        V::Null => JsonValue::Null,
+        V::Array(arr) => JsonValue::Array(arr.iter().map(value_to_json).collect()),
+        V::Table(t) => {
+            let mut obj = serde_json::Map::new();
+            for (k, vv) in t {
+                obj.insert(k.clone(), value_to_json(vv));
+            }
+            JsonValue::Object(obj)
+        }
+        _ => JsonValue::Null,
+    }
+}
+
+fn table_to_json_string(t: &HashMap<String, crate::evaluator::Value>) -> String {
+    let mut obj = serde_json::Map::new();
+    for (k, v) in t {
+        obj.insert(k.clone(), value_to_json(v));
+    }
+    JsonValue::Object(obj).to_string()
+}
 
 pub struct DewModule;
 impl DewModule {
@@ -289,7 +317,6 @@ impl DewModule {
                     })?;
 
                     let mut rows_result = Vec::new();
-                    let col_count = stmt.column_count();
                     let col_names: Vec<String> = stmt.column_names().into_iter().map(|s| s.to_string()).collect();
 
                     let mut rows = stmt.query(rusqlite::params_from_iter(params.iter().map(|v| {
@@ -317,7 +344,10 @@ impl DewModule {
                                 rusqlite::types::Value::Integer(i) => Value::Number(i as f64),
                                 rusqlite::types::Value::Real(f) => Value::Number(f),
                                 rusqlite::types::Value::Text(s) => Value::String(s),
-                                rusqlite::types::Value::Blob(b) => Value::String(base64::encode(b)), // Basic blob handling
+                                rusqlite::types::Value::Blob(b) => {
+                                    use base64::{engine::general_purpose::STANDARD, Engine as _};
+                                    Value::String(STANDARD.encode(b))
+                                }, // Basic blob handling
                             };
                             map.insert(name.clone(), mintas_val);
                         }
@@ -345,9 +375,6 @@ impl DewModule {
                         if let postgres::SimpleQueryMessage::Row(r) = msg {
                             let mut map = HashMap::new();
                             for i in 0..r.len() {
-                                let col_name = "col"; // simple_query doesn't give clean col names easily in all cases 
-                                // Actually it does: r.columns() is implied but we access by index or name if avail?
-                                // postgres::SimpleQueryRow::get(&self, idx) -> Option<&str>
                                 if let Some(val) = r.get(i) {
                                      map.insert(format!("col_{}", i), Value::String(val.to_string()));
                                 }
@@ -1450,7 +1477,7 @@ impl DewModule {
         // Creates a data channel for peer communication
         // Usage: let dc = dew.webrtc_datachannel(peer, {label: "chat", ordered: true})
         match (args.get(0), args.get(1)) {
-            (Some(Value::Table(peer)), Some(Value::Table(config))) => {
+            (Some(Value::Table(_peer)), Some(Value::Table(config))) => {
                 let label = config.get("label").and_then(|v| match v { Value::String(s) => Some(s.clone()), _ => None })
                     .unwrap_or_else(|| "data".to_string());
                 
@@ -1480,10 +1507,7 @@ impl DewModule {
                     Value::String(s) => s.clone(),
                     Value::Number(n) => n.to_string(),
                     Value::Boolean(b) => b.to_string(),
-                    Value::Table(t) => {
-                        let json = serde_json::to_string(&t).unwrap_or_else(|_| "{}".to_string());
-                        json
-                    },
+                    Value::Table(t) => table_to_json_string(&t),
                     _ => "null".to_string(),
                 };
                 
@@ -1920,7 +1944,7 @@ impl DewModule {
         };
         
         let js_code = format!(
-            "document.querySelector('{{}}').style.display = document.querySelector('{{}}').style.display === 'none' ? 'block' : 'none'",
+            "document.querySelector('{}').style.display = document.querySelector('{}').style.display === 'none' ? 'block' : 'none'",
             selector, selector
         );
         Ok(Value::String(js_code))
@@ -1947,26 +1971,26 @@ impl DewModule {
             rules.forEach(rule => {{\n"
         );
         
-        js_code.push_str(
-            "      if (rule === 'required' && !field.value) {\n        \
+        js_code.push_str(&format!(
+            "      if (rule === 'required' && !field.value) {{\n        \
             errors.push(field.name + ' is required');\n      \
-            }\n      \
-            if (rule.startsWith('min:')) {\n        \
+            }}\n      \
+            if (rule.startsWith('min:')) {{\n        \
             const min = parseInt(rule.substring(4));\n        \
-            if (field.value.length < min) {\n          \
+            if (field.value.length < min) {{\n          \
             errors.push(field.name + ' must be at least ' + min + ' characters');\n        \
-            }\n      \
-            }\n      \
-            if (rule.startsWith('max:')) {\n        \
+            }}\n      \
+            }}\n      \
+            if (rule.startsWith('max:')) {{\n        \
             const max = parseInt(rule.substring(4));\n        \
-            if (field.value.length > max) {\n          \
+            if (field.value.length > max) {{\n          \
             errors.push(field.name + ' must be at most ' + max + ' characters');\n        \
-            }\n      \
-            }\n      \
-            if (rule === 'email' && field.value && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(field.value)) {\n        \
+            }}\n      \
+            }}\n      \
+            if (rule === 'email' && field.value && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(field.value)) {{\n        \
             errors.push(field.name + ' must be a valid email');\n      \
-            }\n    \
-            });\n  \
+            }}\n    \
+            }});\n  \
             }});\n  \
             return errors;\n\
             }}\n\
@@ -1978,7 +2002,7 @@ impl DewModule {
             }}\n\
             }});",
             form_selector
-        );
+        ));
         
         Ok(Value::String(js_code))
     }
@@ -3220,7 +3244,7 @@ fn convert_dew_prop_to_css(prop: &str, value: &str) -> Option<String> {
         "line-clamp" => format!("display: -webkit-box; -webkit-line-clamp: {}; -webkit-box-orient: vertical", value),
         "text-stroke" | "webkit-text-stroke" => format!("-webkit-text-stroke: {}", value),
         "text-fill" | "webkit-text-fill" => format!("-webkit-text-fill-color: {}", value),
-        "background-clip" | "bg-clip" => format!("background-clip: {}", value),
+        "background-clip" => format!("background-clip: {}", value),
         "text-background-clip" => "background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent".to_string(),
         "font-smoothing" => format!("-webkit-font-smoothing: {}; -moz-osx-font-smoothing: {}", 
             if value == "auto" { "auto" } else { "antialiased" },

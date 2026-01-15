@@ -217,7 +217,6 @@ impl CanvasModule {
             "fps" => Self::fps(args),
             "frame" => Self::frame(args),
             "sin" => Self::sin(args),
-            "sin" => Self::sin(args),
             "cos" => Self::cos(args),
             
             // === NEW FEATURES ===

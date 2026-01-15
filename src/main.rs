@@ -13,7 +13,6 @@ mod vm;
 use analyzer::CodeAnalyzer;
 use bytecode_cli::{compile_to_bytecode, run_bytecode};
 use cranelift_backend::CraneliftCompiler as JetXCompiler;
-use errors::{MintasError, MintasResult};
 use evaluator::{Evaluator, Value};
 use lexer::Lexer;
 use parser::Parser;
@@ -1654,10 +1653,10 @@ chmod +x /usr/local/bin/{}
 }
 
 /// Create a native executable for current platform
-fn create_real_native(output: &str, project_name: &str, source: &str, uses_canvas: bool, release: bool) {
+fn create_real_native(output: &str, project_name: &str, source: &str, uses_canvas: bool, _release: bool) {
     #[cfg(target_os = "windows")]
     {
-        create_real_exe(output, project_name, source, uses_canvas, release);
+        create_real_exe(output, project_name, source, uses_canvas, _release);
     }
     
     #[cfg(not(target_os = "windows"))]
