@@ -1652,6 +1652,33 @@ chmod +x /usr/local/bin/{}
     println!("      \x1b[32m✓ Created macOS package\x1b[0m");
 }
 
+/// Create a Windows executable
+#[cfg(target_os = "windows")]
+fn create_real_exe(output: &str, project_name: &str, source: &str, uses_canvas: bool, _release: bool) {
+    // Create a Windows executable structure
+    // For now, we'll create a simple Windows batch file wrapper
+    let bat_content = format!(r#"@echo off
+REM {} - Mintas Application
+REM Canvas: {}
+
+set MINTAS_SOURCE={}
+
+REM Check if mintas is available
+where mintas >nul 2>nul
+if %ERRORLEVEL% NEQ 0 (
+    echo Error: mintas runtime not found. Please install mintas first.
+    exit /b 1
+)
+
+REM Pipe the source to mintas
+echo %MINTAS_SOURCE% | mintas /dev/stdin %*
+"#, project_name, uses_canvas, source.replace("\n", "^\n").replace("^", "^^"));
+    
+    // Write the batch file
+    fs::write(output, bat_content).ok();
+    println!("      \x1b[32m✓ Created Windows executable\x1b[0m");
+}
+
 /// Create a native executable for current platform
 fn create_real_native(output: &str, project_name: &str, source: &str, uses_canvas: bool, _release: bool) {
     #[cfg(target_os = "windows")]
@@ -1676,7 +1703,7 @@ else
     echo "Error: mintas runtime not found. Please install mintas first."
     exit 1
 fi
-"#, project_name, uses_canvas, source.replace("'", "'\"'\"'"));
+"#, project_name, uses_canvas, source.replace("'", "'\"'\"'") );
         
         fs::write(output, &script).ok();
         
