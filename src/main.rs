@@ -457,6 +457,12 @@ fn main() {
     
     // Default REPL mode if no file is specified
     let mut default_repl_mode = None;
+    let mut file_path: Option<&str> = None;
+    let mut show_stats = false;
+    let mut check_only = false;
+    let mut debug_mode = false;
+    let mut force_jetx = false;
+    let mut secret: Option<String> = None;
     
     if args.len() < 2 {
         run_repl(default_repl_mode, force_jetx);
@@ -469,13 +475,6 @@ fn main() {
         handle_xdbx_command(&args[2..]);
         return;
     }
-    
-    let mut file_path: Option<&str> = None;
-    let mut show_stats = false;
-    let mut check_only = false;
-    let mut debug_mode = false;
-    let mut force_jetx = false;
-    let mut secret: Option<String> = None;
     
     let mut i = 1;
     while i < args.len() {
