@@ -826,7 +826,7 @@ fn xdbx_init(project_name: &str) {
     println!();
     
     // Create project structure
-    let dirs = vec!["src", "lib", "tests", "docs"];
+    let dirs = vec!["src", "lib"];
     for dir in &dirs {
         match fs::create_dir_all(dir) {
             Ok(_) => println!("✓ Created directory: {}", dir),
@@ -861,17 +861,17 @@ optimization = "debug"
     }
     println!("✓ Created mintas.toml");
     
-    // Create main.mintas
-    let main_content = r#"// Main entry point
-say "Welcome to Mintas!"
-say "This is your new project."
+    // Create main.as
+    let main_content = r#"# Main entry point
+say ("Welcome to Mintas!")
+say ("This is your new project.")
 "#;
     
-    if fs::write("src/main.mintas", main_content).is_err() {
-        eprintln!("✗ Failed to create src/main.mintas");
+    if fs::write("src/main.as", main_content).is_err() {
+        eprintln!("✗ Failed to create src/main.as");
         return;
     }
-    println!("✓ Created src/main.mintas");
+    println!("✓ Created src/main.as");
     
     // Create README
     let readme = format!(
@@ -895,8 +895,6 @@ mintas xdbx run
 
 - `src/` - Source code
 - `lib/` - Libraries and modules
-- `tests/` - Test files
-- `docs/` - Documentation
 "#,
         project_name
     );

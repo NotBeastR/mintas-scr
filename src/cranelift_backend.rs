@@ -205,11 +205,15 @@ impl CraneliftCompiler {
     ) -> Option<(cranelift::prelude::Value, bool)> {
         match expr {
             Expr::Number(n) => Some((builder.ins().f64const(*n), false)),
+            Expr::String(s) => {
+                // Convert string to a simple numeric representation for JetX
+                Some((builder.ins().f64const(s.len() as f64), false))
+            },
             Expr::Boolean(b) => Some((builder.ins().f64const(if *b { 1.0 } else { 0.0 }), false)),
             Expr::Variable(name) => {
                 vars.get(name).map(|&v| (builder.use_var(v), false))
                     .or_else(|| Some((builder.ins().f64const(0.0), false)))
-            }
+            },
             Expr::Assign { name, value, .. } => {
                 let (val, _) = Self::compile_expr(builder, value, vars, var_idx, funcs, print_ref)?;
                 let var = Self::get_or_create_var(builder, name, vars, var_idx);
