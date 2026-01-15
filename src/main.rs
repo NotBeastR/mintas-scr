@@ -67,7 +67,7 @@ fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_j
         }
     });
     
-    if should_try_jetx && is_last_expr_numeric {
+    if should_try_jetx && (is_last_expr_numeric || force_jetx) {
         match JetXCompiler::new() {
             Ok(mut compiler) => {
                 let compile_start = std::time::Instant::now();
