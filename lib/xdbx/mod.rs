@@ -1,3 +1,8 @@
+// XDBX Module - Build system and project management
+// Only available on Windows, Linux, and macOS
+// Not available on WSL (Windows Subsystem for Linux)
+#![cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
+
 use crate::errors::{MintasError, MintasResult, SourceLocation};
 use crate::evaluator::Value;
 use std::collections::HashMap;

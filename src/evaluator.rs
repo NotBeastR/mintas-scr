@@ -186,6 +186,7 @@ mod mqtt_module;
 #[path = "../lib/mycli/mod.rs"]
 mod mycli_module;
 #[allow(unused_imports)]
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 #[path = "../lib/xdbx/mod.rs"]
 mod xdbx_module;
 #[derive(Debug, Clone)]
@@ -2528,10 +2529,18 @@ impl Evaluator {
                 for arg in args { evaluated_args.push(self.eval(arg)?); }
                 return mycli_module::MyCLIModule::call_function(method, &evaluated_args);
             }
+            #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
             if var_name == "xdbx" || var_name == "debug" {
                 let mut evaluated_args = Vec::new();
                 for arg in args { evaluated_args.push(self.eval(arg)?); }
                 return xdbx_module::XdbxModule::call_function(method, &evaluated_args);
+            }
+            #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
+            if var_name == "xdbx" || var_name == "debug" {
+                return Err(MintasError::RuntimeError {
+                    message: "xdbx module is not available on this platform".to_string(),
+                    location: Self::default_location(),
+                });
             }
         }
         let obj_val = self.eval(object)?;

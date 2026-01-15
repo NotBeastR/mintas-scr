@@ -26,7 +26,6 @@ pub enum Expr {
         value: Box<Expr>,
         is_const: bool,
     },
-    #[allow(dead_code)]
     MultiAssign {
         names: Vec<String>,
         values: Vec<Expr>,
@@ -94,7 +93,6 @@ pub enum Expr {
     },
     New {
         class_name: String,
-        #[allow(dead_code)]
         args: Vec<Expr>,
     },
     This,

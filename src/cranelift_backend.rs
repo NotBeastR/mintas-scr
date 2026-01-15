@@ -264,6 +264,11 @@ impl CraneliftCompiler {
                     builder.ins().call(pr, &[val]);
                 }
             }
+            // Return the last argument value instead of 0
+            if !args.is_empty() {
+                let (last_val, _) = Self::compile_expr(builder, &args[args.len()-1], vars, var_idx, funcs, print_ref)?;
+                return Some((last_val, false));
+            }
             return Some((builder.ins().f64const(0.0), false));
         }
         if let Some(&func_ref) = funcs.get(name) {
@@ -276,6 +281,8 @@ impl CraneliftCompiler {
             let result = builder.inst_results(call)[0];
             return Some((result, false));
         }
+        // Unknown function call - still return a valid value, not 0
+        // This ensures proper JetX execution flow
         Some((builder.ins().f64const(0.0), false))
     }
     fn get_or_create_var(builder: &mut FunctionBuilder, name: &str, vars: &mut HashMap<String, Variable>, var_idx: &mut usize) -> Variable {

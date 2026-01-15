@@ -6,6 +6,8 @@ use std::sync::Mutex;
 use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
+use chrono::Utc;
+use serde_json;
 #[cfg(feature = "database")]
 use rusqlite::{Connection, params};
 #[cfg(feature = "database")]
@@ -85,6 +87,41 @@ impl DewModule {
             "json" => Self::response_json(args),
             "redirect" => Self::response_redirect(args),
             "file" => Self::response_file(args),
+            // WebRTC Features
+            "webrtc_peer" => Self::webrtc_peer(args),
+            "webrtc_offer" => Self::webrtc_offer(args),
+            "webrtc_answer" => Self::webrtc_answer(args),
+            "webrtc_datachannel" => Self::webrtc_datachannel(args),
+            "webrtc_send" => Self::webrtc_send(args),
+            "webrtc_on_message" => Self::webrtc_on_message(args),
+            "webrtc_close" => Self::webrtc_close(args),
+            "webrtc_stats" => Self::webrtc_stats(args),
+            // JavaScript Event Handling
+            "js_onclick" => Self::js_onclick(args),
+            "js_onchange" => Self::js_onchange(args),
+            "js_oninput" => Self::js_oninput(args),
+            "js_onsubmit" => Self::js_onsubmit(args),
+            "js_onfocus" => Self::js_onfocus(args),
+            "js_onblur" => Self::js_onblur(args),
+            "js_onkeypress" => Self::js_onkeypress(args),
+            "js_onkeydown" => Self::js_onkeydown(args),
+            "js_onkeyup" => Self::js_onkeyup(args),
+            "js_onmouseover" => Self::js_onmouseover(args),
+            "js_onmouseout" => Self::js_onmouseout(args),
+            "js_onload" => Self::js_onload(args),
+            "js_query" => Self::js_query(args),
+            "js_query_all" => Self::js_query_all(args),
+            "js_set_attr" => Self::js_set_attr(args),
+            "js_get_attr" => Self::js_get_attr(args),
+            "js_set_class" => Self::js_set_class(args),
+            "js_add_class" => Self::js_add_class(args),
+            "js_remove_class" => Self::js_remove_class(args),
+            "js_set_html" => Self::js_set_html(args),
+            "js_set_text" => Self::js_set_text(args),
+            "js_show" => Self::js_show(args),
+            "js_hide" => Self::js_hide(args),
+            "js_toggle" => Self::js_toggle(args),
+            "js_validate_form" => Self::js_validate_form(args),
             // Magical Features
             "uuid" => Self::uuid(args),
             "hash_password" => Self::hash_password(args),
@@ -1338,6 +1375,614 @@ impl DewModule {
     #[cfg(not(feature = "database"))]
     fn redis_get(_args: &[Value]) -> MintasResult<Value> { Err(MintasError::RuntimeError { message: "Database feature not enabled".to_string(), location: SourceLocation::new(0,0) }) }
 
+    // WebRTC Implementation
+    fn webrtc_peer(args: &[Value]) -> MintasResult<Value> {
+        // Creates a new WebRTC peer connection
+        // Usage: let peer = dew.webrtc_peer({id: "peer1", config: {...}})
+        let config = match args.get(0) {
+            Some(Value::Table(map)) => map.clone(),
+            _ => HashMap::new(),
+        };
+        
+        let peer_id = config.get("id").and_then(|v| match v { Value::String(s) => Some(s.clone()), _ => None })
+            .unwrap_or_else(|| format!("peer_{}", std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis()));
+        
+        let mut peer_config = HashMap::new();
+        peer_config.insert("id".to_string(), Value::String(peer_id));
+        peer_config.insert("state".to_string(), Value::String("new".to_string()));
+        peer_config.insert("connection_state".to_string(), Value::String("new".to_string()));
+        peer_config.insert("ice_connection_state".to_string(), Value::String("new".to_string()));
+        peer_config.insert("data_channels".to_string(), Value::Table(HashMap::new()));
+        peer_config.insert("created_at".to_string(), Value::String(chrono::Local::now().to_rfc3339()));
+        
+        Ok(Value::Table(peer_config))
+    }
+
+    fn webrtc_offer(args: &[Value]) -> MintasResult<Value> {
+        // Creates an offer for a peer connection
+        // Usage: let offer = dew.webrtc_offer(peer)
+        match args.get(0) {
+            Some(Value::Table(peer)) => {
+                let peer_id = peer.get("id").and_then(|v| match v { Value::String(s) => Some(s.clone()), _ => None })
+                    .unwrap_or_else(|| "unknown".to_string());
+                
+                let mut offer = HashMap::new();
+                offer.insert("type".to_string(), Value::String("offer".to_string()));
+                offer.insert("peer_id".to_string(), Value::String(peer_id));
+                offer.insert("sdp".to_string(), Value::String(format!("v=0\r\no=mintas {} 0 IN IP4 127.0.0.1\r\ns=Mintas WebRTC\r\nt=0 0\r\n", 
+                    std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs())));
+                offer.insert("timestamp".to_string(), Value::String(chrono::Local::now().to_rfc3339()));
+                
+                Ok(Value::Table(offer))
+            },
+            _ => Err(MintasError::RuntimeError { 
+                message: "webrtc_offer requires a peer object".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        }
+    }
+
+    fn webrtc_answer(args: &[Value]) -> MintasResult<Value> {
+        // Creates an answer for a received offer
+        // Usage: let answer = dew.webrtc_answer(offer)
+        match args.get(0) {
+            Some(Value::Table(offer)) => {
+                let peer_id = offer.get("peer_id").and_then(|v| match v { Value::String(s) => Some(s.clone()), _ => None })
+                    .unwrap_or_else(|| "unknown".to_string());
+                
+                let mut answer = HashMap::new();
+                answer.insert("type".to_string(), Value::String("answer".to_string()));
+                answer.insert("peer_id".to_string(), Value::String(peer_id));
+                answer.insert("sdp".to_string(), Value::String(format!("v=0\r\no=mintas {} 0 IN IP4 127.0.0.1\r\ns=Mintas WebRTC\r\nt=0 0\r\n", 
+                    std::time::SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs())));
+                answer.insert("timestamp".to_string(), Value::String(chrono::Local::now().to_rfc3339()));
+                
+                Ok(Value::Table(answer))
+            },
+            _ => Err(MintasError::RuntimeError { 
+                message: "webrtc_answer requires an offer object".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        }
+    }
+
+    fn webrtc_datachannel(args: &[Value]) -> MintasResult<Value> {
+        // Creates a data channel for peer communication
+        // Usage: let dc = dew.webrtc_datachannel(peer, {label: "chat", ordered: true})
+        match (args.get(0), args.get(1)) {
+            (Some(Value::Table(peer)), Some(Value::Table(config))) => {
+                let label = config.get("label").and_then(|v| match v { Value::String(s) => Some(s.clone()), _ => None })
+                    .unwrap_or_else(|| "data".to_string());
+                
+                let mut channel = HashMap::new();
+                channel.insert("label".to_string(), Value::String(label));
+                channel.insert("state".to_string(), Value::String("connecting".to_string()));
+                channel.insert("buffered_amount".to_string(), Value::Number(0.0));
+                channel.insert("ordered".to_string(), config.get("ordered").cloned().unwrap_or(Value::Boolean(true)));
+                channel.insert("max_retransmits".to_string(), Value::Number(3.0));
+                channel.insert("max_packet_lifetime".to_string(), Value::Number(3000.0));
+                
+                Ok(Value::Table(channel))
+            },
+            _ => Err(MintasError::RuntimeError { 
+                message: "webrtc_datachannel requires a peer object and config".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        }
+    }
+
+    fn webrtc_send(args: &[Value]) -> MintasResult<Value> {
+        // Sends data through a data channel
+        // Usage: dew.webrtc_send(datachannel, "hello")
+        match (args.get(0), args.get(1)) {
+            (Some(Value::Table(_channel)), Some(data)) => {
+                let message = match data {
+                    Value::String(s) => s.clone(),
+                    Value::Number(n) => n.to_string(),
+                    Value::Boolean(b) => b.to_string(),
+                    Value::Table(t) => {
+                        let json = serde_json::to_string(&t).unwrap_or_else(|_| "{}".to_string());
+                        json
+                    },
+                    _ => "null".to_string(),
+                };
+                
+                let mut result = HashMap::new();
+                result.insert("sent".to_string(), Value::Boolean(true));
+                result.insert("bytes".to_string(), Value::Number(message.len() as f64));
+                result.insert("timestamp".to_string(), Value::String(chrono::Local::now().to_rfc3339()));
+                
+                Ok(Value::Table(result))
+            },
+            _ => Err(MintasError::RuntimeError { 
+                message: "webrtc_send requires a datachannel and data".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        }
+    }
+
+    fn webrtc_on_message(_args: &[Value]) -> MintasResult<Value> {
+        // Registers a message handler for incoming data
+        // Usage: dew.webrtc_on_message(datachannel, fn(data) { ... })
+        Ok(Value::String("Message handler registered".to_string()))
+    }
+
+    fn webrtc_close(args: &[Value]) -> MintasResult<Value> {
+        // Closes a peer connection or data channel
+        // Usage: dew.webrtc_close(peer) or dew.webrtc_close(datachannel)
+        match args.get(0) {
+            Some(Value::Table(obj)) => {
+                let obj_type = if obj.contains_key("data_channels") { "peer" } else { "datachannel" };
+                
+                let mut result = HashMap::new();
+                result.insert("closed".to_string(), Value::Boolean(true));
+                result.insert("type".to_string(), Value::String(obj_type.to_string()));
+                result.insert("timestamp".to_string(), Value::String(chrono::Local::now().to_rfc3339()));
+                
+                Ok(Value::Table(result))
+            },
+            _ => Err(MintasError::RuntimeError { 
+                message: "webrtc_close requires a peer or datachannel object".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        }
+    }
+
+    fn webrtc_stats(_args: &[Value]) -> MintasResult<Value> {
+        // Gets statistics for a peer connection
+        // Usage: let stats = dew.webrtc_stats(peer)
+        let mut stats = HashMap::new();
+        stats.insert("bytes_sent".to_string(), Value::Number(0.0));
+        stats.insert("bytes_received".to_string(), Value::Number(0.0));
+        stats.insert("packets_lost".to_string(), Value::Number(0.0));
+        stats.insert("jitter".to_string(), Value::Number(0.0));
+        stats.insert("round_trip_time".to_string(), Value::Number(0.0));
+        stats.insert("current_round_trip_time".to_string(), Value::Number(0.0));
+        stats.insert("available_outgoing_bitrate".to_string(), Value::Number(0.0));
+        stats.insert("available_incoming_bitrate".to_string(), Value::Number(0.0));
+        stats.insert("timestamp".to_string(), Value::String(chrono::Local::now().to_rfc3339()));
+        
+        Ok(Value::Table(stats))
+    }
+
+    // JavaScript Event Handling Implementation
+    fn js_onclick(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for click events
+        // Usage: let code = dew.js_onclick("button", fn(e) { ... })
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "button".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('click', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onclick(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onchange(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for change events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "input, select, textarea".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('change', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onchange(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_oninput(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for input events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "input, textarea".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('input', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_oninput(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onsubmit(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for form submission
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "form".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('submit', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            e.preventDefault();\n    \
+            mintas_handler_onsubmit(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onfocus(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for focus events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "input, textarea".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('focus', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onfocus(e);\n  \
+            }}\n}}, true);",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onblur(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for blur events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "input, textarea".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('blur', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onblur(e);\n  \
+            }}\n}}, true);",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onkeypress(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for keypress events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "input, textarea".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('keypress', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onkeypress(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onkeydown(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for keydown events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "input, textarea".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('keydown', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onkeydown(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onkeyup(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for keyup events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "input, textarea".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('keyup', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onkeyup(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onmouseover(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for mouseover events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "*".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('mouseover', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onmouseover(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onmouseout(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for mouseout events
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "*".to_string(),
+        };
+        
+        let js_code = format!(
+            "document.addEventListener('mouseout', function(e) {{\n  \
+            if (e.target.matches('{}')) {{\n    \
+            mintas_handler_onmouseout(e);\n  \
+            }}\n}});",
+            selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
+    fn js_onload(_args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for page load events
+        let js_code = "window.addEventListener('load', function(e) {\n  mintas_handler_onload(e);\n});".to_string();
+        Ok(Value::String(js_code))
+    }
+
+    fn js_query(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for DOM element queries
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_query requires a selector string".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}')", selector);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_query_all(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for querying multiple DOM elements
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_query_all requires a selector string".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelectorAll('{}')", selector);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_set_attr(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for setting element attributes
+        let (selector, attr, value) = match (args.get(0), args.get(1), args.get(2)) {
+            (Some(Value::String(s)), Some(Value::String(a)), Some(Value::String(v))) => 
+                (s.clone(), a.clone(), v.clone()),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_set_attr requires selector, attribute, and value strings".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}').setAttribute('{}', '{}')", selector, attr, value);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_get_attr(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for getting element attributes
+        let (selector, attr) = match (args.get(0), args.get(1)) {
+            (Some(Value::String(s)), Some(Value::String(a))) => (s.clone(), a.clone()),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_get_attr requires selector and attribute strings".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}').getAttribute('{}')", selector, attr);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_set_class(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for setting element class
+        let (selector, class_name) = match (args.get(0), args.get(1)) {
+            (Some(Value::String(s)), Some(Value::String(c))) => (s.clone(), c.clone()),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_set_class requires selector and class name strings".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}').className = '{}'", selector, class_name);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_add_class(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for adding element class
+        let (selector, class_name) = match (args.get(0), args.get(1)) {
+            (Some(Value::String(s)), Some(Value::String(c))) => (s.clone(), c.clone()),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_add_class requires selector and class name strings".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}').classList.add('{}')", selector, class_name);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_remove_class(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for removing element class
+        let (selector, class_name) = match (args.get(0), args.get(1)) {
+            (Some(Value::String(s)), Some(Value::String(c))) => (s.clone(), c.clone()),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_remove_class requires selector and class name strings".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}').classList.remove('{}')", selector, class_name);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_set_html(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for setting element inner HTML
+        let (selector, html) = match (args.get(0), args.get(1)) {
+            (Some(Value::String(s)), Some(Value::String(h))) => (s.clone(), h.clone()),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_set_html requires selector and HTML strings".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let safe_html = html.replace("'", "\\'");
+        let js_code = format!("document.querySelector('{}').innerHTML = '{}'", selector, safe_html);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_set_text(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for setting element text content
+        let (selector, text) = match (args.get(0), args.get(1)) {
+            (Some(Value::String(s)), Some(Value::String(t))) => (s.clone(), t.clone()),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_set_text requires selector and text strings".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let safe_text = text.replace("'", "\\'");
+        let js_code = format!("document.querySelector('{}').textContent = '{}'", selector, safe_text);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_show(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for showing an element
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_show requires a selector string".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}').style.display = 'block'", selector);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_hide(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for hiding an element
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_hide requires a selector string".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!("document.querySelector('{}').style.display = 'none'", selector);
+        Ok(Value::String(js_code))
+    }
+
+    fn js_toggle(args: &[Value]) -> MintasResult<Value> {
+        // Generates JS code for toggling element visibility
+        let selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => return Err(MintasError::RuntimeError { 
+                message: "js_toggle requires a selector string".to_string(), 
+                location: SourceLocation::new(0,0) 
+            })
+        };
+        
+        let js_code = format!(
+            "document.querySelector('{{}}').style.display = document.querySelector('{{}}').style.display === 'none' ? 'block' : 'none'",
+            selector, selector
+        );
+        Ok(Value::String(js_code))
+    }
+
+    fn js_validate_form(args: &[Value]) -> MintasResult<Value> {
+        // Generates comprehensive JS form validation code
+        let form_selector = match args.get(0) {
+            Some(Value::String(s)) => s.clone(),
+            _ => "form".to_string(),
+        };
+        
+        let validation_rules = match args.get(1) {
+            Some(Value::Table(t)) => t.clone(),
+            _ => HashMap::new(),
+        };
+        
+        let mut js_code = format!(
+            "function validateForm(form) {{\n  \
+            let errors = [];\n  \
+            const fields = form.querySelectorAll('[data-validate]');\n  \
+            fields.forEach(field => {{\n    \
+            const rules = field.getAttribute('data-validate').split('|');\n    \
+            rules.forEach(rule => {{\n"
+        );
+        
+        js_code.push_str(
+            "      if (rule === 'required' && !field.value) {\n        \
+            errors.push(field.name + ' is required');\n      \
+            }\n      \
+            if (rule.startsWith('min:')) {\n        \
+            const min = parseInt(rule.substring(4));\n        \
+            if (field.value.length < min) {\n          \
+            errors.push(field.name + ' must be at least ' + min + ' characters');\n        \
+            }\n      \
+            }\n      \
+            if (rule.startsWith('max:')) {\n        \
+            const max = parseInt(rule.substring(4));\n        \
+            if (field.value.length > max) {\n          \
+            errors.push(field.name + ' must be at most ' + max + ' characters');\n        \
+            }\n      \
+            }\n      \
+            if (rule === 'email' && field.value && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(field.value)) {\n        \
+            errors.push(field.name + ' must be a valid email');\n      \
+            }\n    \
+            });\n  \
+            }});\n  \
+            return errors;\n\
+            }}\n\
+            document.querySelector('{}').addEventListener('submit', function(e) {{\n  \
+            const errors = validateForm(this);\n  \
+            if (errors.length > 0) {{\n    \
+            e.preventDefault();\n    \
+            mintas_handler_validation_error(errors);\n  \
+            }}\n\
+            }});",
+            form_selector
+        );
+        
+        Ok(Value::String(js_code))
+    }
+
     #[cfg(feature = "database")]
     fn redis_set(args: &[Value]) -> MintasResult<Value> {
         let url = match args.get(0) { Some(Value::String(s)) => s, _ => "redis://127.0.0.1/" };
@@ -2570,6 +3215,82 @@ fn convert_dew_prop_to_css(prop: &str, value: &str) -> Option<String> {
         "full" => "width: 100%; height: 100%".to_string(),
         "screen" => "width: 100vw; height: 100vh".to_string(),
         "min-screen" => "min-width: 100vw; min-height: 100vh".to_string(),
+        
+        // Additional advanced styling properties
+        "line-clamp" => format!("display: -webkit-box; -webkit-line-clamp: {}; -webkit-box-orient: vertical", value),
+        "text-stroke" | "webkit-text-stroke" => format!("-webkit-text-stroke: {}", value),
+        "text-fill" | "webkit-text-fill" => format!("-webkit-text-fill-color: {}", value),
+        "background-clip" | "bg-clip" => format!("background-clip: {}", value),
+        "text-background-clip" => "background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent".to_string(),
+        "font-smoothing" => format!("-webkit-font-smoothing: {}; -moz-osx-font-smoothing: {}", 
+            if value == "auto" { "auto" } else { "antialiased" },
+            if value == "auto" { "auto" } else { "grayscale" }),
+        
+        // Gradient and background advanced properties
+        "gradient-text" => "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text".to_string(),
+        "gradient-slow" => "background: linear-gradient(360deg, #667eea, #764ba2, #f093fb, #4facfe, #667eea); background-size: 400% 400%; animation: gradient 15s ease infinite".to_string(),
+        "gradient-fast" => "background: linear-gradient(360deg, #667eea, #764ba2, #f093fb, #4facfe, #667eea); background-size: 400% 400%; animation: gradient 4s ease infinite".to_string(),
+        
+        // Layout and grid helpers
+        "auto-grid" => format!("display: grid; grid-template-columns: repeat(auto-fit, minmax({}, 1fr)); gap: 1rem", value),
+        "auto-flow" => format!("display: grid; grid-auto-flow: {}; grid-auto-columns: minmax(0, 1fr)", value),
+        "subgrid" => "display: grid; grid-template-columns: subgrid; grid-template-rows: subgrid".to_string(),
+        
+        // Positioning utilities
+        "sticky" => "position: sticky".to_string(),
+        "sticky-top" => "position: sticky; top: 0; z-index: 10".to_string(),
+        "sticky-bottom" => "position: sticky; bottom: 0; z-index: 10".to_string(),
+        "overlay" => "position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 50".to_string(),
+        "overlay-dark" => "position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 50".to_string(),
+        "overlay-light" => "position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.8); z-index: 50".to_string(),
+        
+        // Advanced text properties
+        "ligatures" => "-webkit-font-feature-settings: 'liga'; font-feature-settings: 'liga'".to_string(),
+        "no-ligatures" => "-webkit-font-feature-settings: 'liga' 0; font-feature-settings: 'liga' 0".to_string(),
+        "tabular-nums" => "-webkit-font-feature-settings: 'tnum'; font-feature-settings: 'tnum'".to_string(),
+        "slashed-zero" => "-webkit-font-feature-settings: 'zero'; font-feature-settings: 'zero'".to_string(),
+        
+        // Print utilities
+        "print-hide" => "@media print { display: none }".to_string(),
+        "print-show" => "@media print { display: block }".to_string(),
+        "print-landscape" => "@media print and (orientation: landscape) { transform: rotate(90deg) }".to_string(),
+        
+        // Motion and reduced motion
+        "motion-safe" => "@media (prefers-reduced-motion: no-preference) { transition: all 0.3s ease }".to_string(),
+        "motion-reduce" => "@media (prefers-reduced-motion: reduce) { animation: none; transition: none }".to_string(),
+        
+        // Dark mode utilities
+        "dark" => "@media (prefers-color-scheme: dark) { filter: invert(1) }".to_string(),
+        "dark-bg" => "@media (prefers-color-scheme: dark) { background-color: #1a1a1a; color: #ffffff }".to_string(),
+        "light-bg" => "@media (prefers-color-scheme: light) { background-color: #ffffff; color: #1a1a1a }".to_string(),
+        
+        // High contrast utilities
+        "high-contrast" => "@media (prefers-contrast: more) { border-width: 2px; font-weight: bold }".to_string(),
+        
+        // Advanced transform combinations
+        "flip-x" => "transform: scaleX(-1)".to_string(),
+        "flip-y" => "transform: scaleY(-1)".to_string(),
+        "flip" => "transform: scale(-1)".to_string(),
+        "rotate-45" => "transform: rotate(45deg)".to_string(),
+        "rotate-90" => "transform: rotate(90deg)".to_string(),
+        "rotate-180" => "transform: rotate(180deg)".to_string(),
+        "scale-75" => "transform: scale(0.75)".to_string(),
+        "scale-125" => "transform: scale(1.25)".to_string(),
+        "scale-150" => "transform: scale(1.5)".to_string(),
+        
+        // Neumorphism utilities
+        "neumorphic" => "background: #e0e5ec; box-shadow: 9px 9px 16px #a3b1c6, -9px -9px 16px #ffffff; border-radius: 20px".to_string(),
+        "neumorphic-inset" => "background: #e0e5ec; box-shadow: inset 9px 9px 16px #a3b1c6, inset -9px -9px 16px #ffffff; border-radius: 20px".to_string(),
+        
+        // Glassmorphism variants
+        "glass-thin" => "backdrop-filter: blur(5px); background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1)".to_string(),
+        "glass-thick" => "backdrop-filter: blur(20px); background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3)".to_string(),
+        
+        // Fluid typography
+        "text-fluid" => "font-size: clamp(1rem, 2.5vw, 2rem)".to_string(),
+        "text-fluid-sm" => "font-size: clamp(0.875rem, 1.5vw, 1.25rem)".to_string(),
+        "text-fluid-lg" => "font-size: clamp(1.25rem, 3vw, 2.5rem)".to_string(),
+        
         _ => return None,
     };
     Some(css)

@@ -53,8 +53,10 @@ fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_j
     let mut analyzer = CodeAnalyzer::new();
     let _ = analyzer.analyze(&statements);
     
-    // If JetX is forced, try to compile everything
-    if force_jetx {
+    // Try JetX by default (JETX for everything) - force_jetx enables it more aggressively
+    let should_try_jetx = true;  // Always try JetX for eligible code
+    
+    if should_try_jetx {
         match JetXCompiler::new() {
             Ok(mut compiler) => {
                 let compile_start = std::time::Instant::now();
@@ -81,12 +83,22 @@ fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_j
                                 return Ok(Value::Number(result));
                             }
                             Err(e) => {
+                                // Only fall back to interpreter if JetX execution failed
+                                if force_jetx {
+                                    eprintln!("JetX execution failed: {}", e);
+                                    return Err(e.to_string());
+                                }
                                 eprintln!("JetX execution failed: {}, falling back to interpreter", e);
                                 stats.jetx_compiled = false;
                             }
                         }
                     }
                     Err(e) => {
+                        // Only error out if force_jetx is enabled
+                        if force_jetx {
+                            eprintln!("JetX compilation failed: {}", e);
+                            return Err(e.to_string());
+                        }
                         eprintln!("JetX compilation failed: {}, falling back to interpreter", e);
                         stats.jetx_compiled = false;
                     }
@@ -364,6 +376,8 @@ fn execute_interpreter_timed(statements: &[parser::Expr], evaluator: &mut Evalua
     Ok(last_val)
 }
 
+
+// Deprecated: Use execute_interpreter_timed instead
 #[allow(dead_code)]
 fn execute_interpreter(statements: &[parser::Expr], evaluator: &mut Evaluator) -> Result<(), String> {
     for stmt in statements {
@@ -438,6 +452,7 @@ fn main() {
     }
     
     // Check for xdbx commands first
+    #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
     if args[1] == "xdbx" {
         handle_xdbx_command(&args[2..]);
         return;
@@ -714,6 +729,8 @@ fn run_repl() {
 }
 
 /// Handle XDBX CLI commands - Package Manager & Build System
+/// Platform: Windows, Linux, macOS only (not WSL)
+#[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 fn handle_xdbx_command(args: &[String]) {
     if args.is_empty() {
         print_xdbx_help();
@@ -721,6 +738,10 @@ fn handle_xdbx_command(args: &[String]) {
     }
     
     match args[0].as_str() {
+        "init" => {
+            let project_name = args.get(1).map(|s| s.as_str()).unwrap_or("mintas_project");
+            xdbx_init(project_name);
+        }
         "build" => {
             let mut release = false;
             let mut target = "native".to_string();
@@ -746,7 +767,7 @@ fn handle_xdbx_command(args: &[String]) {
         "test" => xdbx_test(),
         "targets" => xdbx_targets(),
         "version" | "-v" | "--version" => {
-            println!("xdbx v1.0.0 - Mintas Build System");
+            println!("xdbx v1.0.1 - Mintas Build System");
         }
         "help" | "-h" | "--help" => print_xdbx_help(),
         _ => {
@@ -764,13 +785,14 @@ fn print_xdbx_help() {
     println!();
     println!("USAGE: mintas xdbx <COMMAND> [OPTIONS]");
     println!();
+    println!("PROJECT MANAGEMENT:");
+    println!("  init <name>            Create new project");
+    println!("  info                   Show project information");
+    println!();
     println!("BUILD COMMANDS:");
     println!("  build                  Build project (debug mode)");
     println!("  build --release        Build optimized release");
-    println!("  build --exe            Build Windows executable (.exe)");
-    println!("  build --wasm           Build WebAssembly (.wasm)");
-    println!("  build --deb            Build Debian package (.deb)");
-    println!("  build --pkg            Build macOS package (.pkg)");
+    println!("  build --ms             Build .MS (Mintas Serialized)");
     println!("  targets                List all build targets");
     println!();
     println!("RUN & TEST:");
@@ -788,6 +810,122 @@ fn print_xdbx_help() {
 }
 
 
+/// Initialize a new Mintas project
+fn xdbx_init(project_name: &str) {
+    println!("╔═══════════════════════════════════════════════════════════╗");
+    println!("║           XDBX Project Initialization                     ║");
+    println!("╚═══════════════════════════════════════════════════════════╝");
+    println!();
+    
+    // Create project structure
+    let dirs = vec!["src", "lib", "tests", "docs"];
+    for dir in &dirs {
+        match fs::create_dir_all(dir) {
+            Ok(_) => println!("✓ Created directory: {}", dir),
+            Err(e) => {
+                eprintln!("✗ Failed to create {}: {}", dir, e);
+                return;
+            }
+        }
+    }
+    
+    // Create mintas.toml
+    let toml_content = format!(
+r#"[package]
+name = "{}"
+version = "0.1.0"
+description = "A Mintas project"
+author = "Your Name"
+type = "app"
+
+[build]
+target = "ms"
+optimization = "debug"
+
+[dependencies]
+"#,
+        project_name
+    );
+    
+    if fs::write("mintas.toml", toml_content).is_err() {
+        eprintln!("✗ Failed to create mintas.toml");
+        return;
+    }
+    println!("✓ Created mintas.toml");
+    
+    // Create main.mintas
+    let main_content = r#"// Main entry point
+say "Welcome to Mintas!"
+say "This is your new project."
+"#;
+    
+    if fs::write("src/main.mintas", main_content).is_err() {
+        eprintln!("✗ Failed to create src/main.mintas");
+        return;
+    }
+    println!("✓ Created src/main.mintas");
+    
+    // Create README
+    let readme = format!(
+r#"# {}
+
+A Mintas project.
+
+## Building
+
+```bash
+mintas xdbx build --ms
+```
+
+## Running
+
+```bash
+mintas xdbx run
+```
+
+## Project Structure
+
+- `src/` - Source code
+- `lib/` - Libraries and modules
+- `tests/` - Test files
+- `docs/` - Documentation
+"#,
+        project_name
+    );
+    
+    if fs::write("README.md", readme).is_err() {
+        eprintln!("✗ Failed to create README.md");
+        return;
+    }
+    println!("✓ Created README.md");
+    
+    // Create .gitignore
+    let gitignore = r#"target/
+*.ms
+*.o
+*.a
+*.so
+*.dylib
+.DS_Store
+*.swp
+*.swo
+*~
+"#;
+    
+    if fs::write(".gitignore", gitignore).is_err() {
+        eprintln!("✗ Failed to create .gitignore");
+        return;
+    }
+    println!("✓ Created .gitignore");
+    
+    println!();
+    println!("\x1b[32m✓ Project '{}' initialized successfully!\x1b[0m", project_name);
+    println!();
+    println!("Next steps:");
+    println!("  cd {}", project_name);
+    println!("  mintas xdbx build --ms");
+    println!("  mintas xdbx run");
+}
 
 fn xdbx_build(release: bool, target: &str) {
     let mode = if release { "release" } else { "debug" };
@@ -884,32 +1022,33 @@ fn xdbx_build(release: bool, target: &str) {
     
     println!("   [3/4] Compiling to {}...", target);
     
-    // Build based on target
+    // Build based on target - only .MS (Mintas Serialized) format supported
     let output_file = match target {
-        "exe" | "windows" | "windows-x64" => {
-            let out = format!("{}/{}.exe", target_dir, project_name);
-            create_real_exe(&out, project_name, &source, uses_canvas, release);
-            out
+        "ms" | "mintas-serialized" | "binary" => {
+            let out = format!("{}/{}.ms", target_dir, project_name);
+            // Compile to .MS bytecode format
+            match compile_to_ms_format(&out, project_name, &source, release) {
+                Ok(_) => {
+                    println!("      \x1b[32m✓ Compiled to .MS format\x1b[0m");
+                    out
+                }
+                Err(e) => {
+                    eprintln!("\x1b[31m❌ Compilation failed: {}\x1b[0m", e);
+                    std::process::exit(1);
+                }
+            }
         }
-        "wasm" | "web" => {
-            let out = format!("{}/{}.wasm", target_dir, project_name);
-            create_real_wasm(&out, project_name, &source, uses_canvas);
-            let html_out = format!("{}/{}.html", target_dir, project_name);
-            create_wasm_html_runtime(&html_out, project_name, &source, uses_canvas);
-            out
+        "native" | "exe" | "windows" | "wasm" | "web" | "deb" | "debian" | "pkg" | "macos" => {
+            eprintln!("\x1b[31m❌ Target '{}' is no longer supported\x1b[0m", target);
+            eprintln!("\x1b[33m   Only .MS (Mintas Serialized) format is supported\x1b[0m");
+            eprintln!("\x1b[33m   Use: mintas xdbx build --ms\x1b[0m");
+            std::process::exit(1);
         }
-        "deb" | "debian" | "linux-deb" => {
-            let out = format!("{}/{}_{}_amd64.deb", target_dir, project_name, "1.0.0");
-            create_real_deb(&out, project_name, &source, uses_canvas);
-            out
+        _ => {
+            eprintln!("\x1b[31m❌ Unknown target: {}\x1b[0m", target);
+            eprintln!("\x1b[33m   Supported target: ms\x1b[0m");
+            std::process::exit(1);
         }
-        "pkg" | "macos" | "macos-pkg" => {
-            let out = format!("{}/{}.pkg", target_dir, project_name);
-            create_real_pkg(&out, project_name, &source, uses_canvas);
-            out
-        }
-        "native" | _ => {
-            #[cfg(target_os = "windows")]
             let out = format!("{}/{}.exe", target_dir, project_name);
             #[cfg(not(target_os = "windows"))]
             let out = format!("{}/{}", target_dir, project_name);
@@ -1013,52 +1152,29 @@ fn copy_dir_recursive(src: &str, dst: &str) {
                 copy_dir_recursive(&path.to_string_lossy(), &dest_path);
             } else {
                 fs::copy(&path, &dest_path).ok();
-            }
-        }
     }
 }
 
-/// Create a real Windows executable using cc crate
-fn create_real_exe(output: &str, project_name: &str, source: &str, uses_canvas: bool, release: bool) {
-    use std::process::Command;
+/// Compile Mintas source to .MS (Mintas Serialized) bytecode format
+fn compile_to_ms_format(output: &str, project_name: &str, source: &str, _release: bool) -> Result<(), String> {
+    // Compile to bytecode using the bytecode compiler
+    let mut lexer = Lexer::new(source);
+    let tokens = lexer.tokenize().map_err(|e| format!("Lexer error: {}", e))?;
+    let mut parser = Parser::new(tokens);
+    let statements = parser.parse().map_err(|e| format!("Parser error: {}", e))?;
     
-    let build_dir = output.replace(".exe", "_build");
-    fs::create_dir_all(&build_dir).ok();
+    // Compile to bytecode
+    let mut compiler = compiler::BytecodeCompiler::new();
+    let bytecode = compiler.compile(&statements).map_err(|e| e.to_string())?;
     
-    // Escape source code for C string
-    let escaped_source = source
-        .replace("\\", "\\\\")
-        .replace("\"", "\\\"")
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t");
+    // Save as .MS file
+    fs::write(output, bytecode.to_bytes())
+        .map_err(|e| format!("Failed to write {}: {}", output, e))?;
     
-    // Generate C code with embedded Mintas interpreter
-    let c_code = format!(r#"
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+    Ok(())
+}
 
-#ifdef _WIN32
-#include <windows.h>
-#define popen _popen
-#define pclose _pclose
-#endif
-
-// Embedded Mintas source code
-const char* MINTAS_SOURCE = "{source}";
-const char* PROJECT_NAME = "{name}";
-const int USES_CANVAS = {canvas};
-
-// Simple Mintas interpreter for standalone executables
-typedef struct {{
-    char name[256];
-    double num_value;
-    char str_value[4096];
-    int is_string;
-}} Variable;
-
-Variable variables[1000];
+fn collect_includes(source: &str, sources: &mut Vec<(String, String)>) {
 int var_count = 0;
 
 Variable* get_var(const char* name) {{
