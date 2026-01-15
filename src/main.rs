@@ -55,7 +55,19 @@ fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_j
     // Try JetX by default (JETX for everything) - force_jetx enables it more aggressively
     let should_try_jetx = true;  // Always try JetX for eligible code
     
-    if should_try_jetx {
+    // Check if the last expression is numeric - only use JetX for numeric expressions
+    let is_last_expr_numeric = statements.last().map_or(false, |stmt| {
+        match stmt {
+            parser::Expr::Number(_) => true,
+            parser::Expr::BinaryOp { .. } => true,
+            parser::Expr::UnaryOp { .. } => true,
+            parser::Expr::Variable(_) => true,
+            parser::Expr::Call { name, .. } if name == "say" => false,
+            _ => false,
+        }
+    });
+    
+    if should_try_jetx && is_last_expr_numeric {
         match JetXCompiler::new() {
             Ok(mut compiler) => {
                 let compile_start = std::time::Instant::now();
@@ -70,10 +82,8 @@ fn execute_jetx(code: &str, evaluator: &mut Evaluator, show_stats: bool, force_j
                             Ok(result) => {
                                 stats.execution_time_us = exec_start.elapsed().as_micros() as u64;
                                 
-                                // Sync variables back (this is a simplified version of what sync_jetx_variables does)
-                                if let Some(var_name) = find_last_assigned_var(&statements) {
-                                    evaluator.set_variable(var_name, Value::Number(result));
-                                }
+                                // Sync variables back using proper sync function
+                                sync_jetx_variables(&statements, result, evaluator);
 
                                 if show_stats {
                                     let total_time = total_start.elapsed().as_micros() as u64;
@@ -445,8 +455,11 @@ fn print_jetx_stats(stats: &JetXStats, total_us: u64) {
 fn main() {
     let args: Vec<String> = env::args().collect();
     
+    // Default REPL mode if no file is specified
+    let mut default_repl_mode = None;
+    
     if args.len() < 2 {
-        run_repl();
+        run_repl(default_repl_mode);
         return;
     }
     
@@ -476,6 +489,15 @@ fn main() {
             "-c" | "--check" => check_only = true,
             "-d" | "--debug" => debug_mode = true,
             "-jetx" | "--jetx" => force_jetx = true,
+            "--default" => {
+                if i + 1 < args.len() {
+                    default_repl_mode = Some(args[i + 1].clone());
+                    i += 1;
+                } else {
+                    eprintln!("Error: --default requires a value");
+                    std::process::exit(1);
+                }
+            }
             "--secret" | "--key" => {
                 if i + 1 < args.len() {
                     secret = Some(args[i + 1].clone());
@@ -518,7 +540,7 @@ fn main() {
     if let Some(path) = file_path {
         run_file(path, show_stats, check_only, debug_mode, force_jetx);
     } else {
-        run_repl();
+        run_repl(default_repl_mode);
     }
 }
 
@@ -638,10 +660,18 @@ fn check_code(code: &str, file_path: &str) {
     println!("Ready. {} statements.", statements.len());
 }
 
-fn run_repl() {
+fn run_repl(default_mode: Option<String>) {
     let jetx_available = JetXCompiler::new().is_ok();
-    let mode_label = if jetx_available { "JetX JIT Compiler" } else { "Interpreter Mode" };
-    let mode_color = if jetx_available { "\x1b[1;33m" } else { "\x1b[1;34m" };
+    let force_interpreter = default_mode.as_deref() == Some("interpreter") || default_mode.as_deref() == Some("int");
+    let force_jetx = default_mode.as_deref() == Some("jetx") && jetx_available;
+    
+    let mode_label = match (force_interpreter, force_jetx, jetx_available) {
+        (true, _, _) => "Interpreter Mode",
+        (_, true, _) => "JetX JIT Compiler",
+        (_, _, true) => "JetX JIT Compiler",
+        _ => "Interpreter Mode",
+    };
+    let mode_color = if force_jetx || (!force_interpreter && jetx_available) { "\x1b[1;33m" } else { "\x1b[1;34m" };
 
     println!("\x1b[1;36m╔═══════════════════════════════════════════════════════════╗\x1b[0m");
     println!("\x1b[1;36m║\x1b[0m   \x1b[1;35mMintas v{}\x1b[0m with {}{}\x1b[0m                 \x1b[1;36m║\x1b[0m", env!("CARGO_PKG_VERSION"), mode_color, mode_label);
@@ -656,7 +686,7 @@ fn run_repl() {
     let mut history: VecDeque<String> = VecDeque::with_capacity(100);
     
     loop {
-        let prompt_mode = if jetx_available { "JIT" } else { "INT" };
+        let prompt_mode = if force_interpreter { "INT" } else if jetx_available { "JIT" } else { "INT" };
         print!("\x1b[1;36m[{}]\x1b[0m ❯ ", prompt_mode);
         io::stdout().flush().unwrap();
         
@@ -722,7 +752,18 @@ fn run_repl() {
         history.push_back(input.to_string());
         if history.len() > 100 { history.pop_front(); }
         
-        match execute_jetx(input, &mut evaluator, false, false) {
+        let result = if force_interpreter {
+            // Force interpreter mode
+            match parse_code(input) {
+                Ok(statements) => execute_interpreter_timed(&statements, &mut evaluator),
+                Err(e) => Err(e),
+            }
+        } else {
+            // Use JetX if available, otherwise fallback to interpreter
+            execute_jetx(input, &mut evaluator, false, force_jetx)
+        };
+        
+        match result {
             Ok(Value::ExitSignal) => {
                 let _ = evaluator.flush_all_buffers();
                 println!("\n\x1b[1;32m✓\x1b[0m Goodbye! Thanks for using Mintas.\n");
