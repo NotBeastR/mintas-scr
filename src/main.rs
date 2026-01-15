@@ -1049,13 +1049,6 @@ fn xdbx_build(release: bool, target: &str) {
             eprintln!("\x1b[33m   Supported target: ms\x1b[0m");
             std::process::exit(1);
         }
-            let out = format!("{}/{}.exe", target_dir, project_name);
-            #[cfg(not(target_os = "windows"))]
-            let out = format!("{}/{}", target_dir, project_name);
-            
-            create_real_native(&out, project_name, &source, uses_canvas, release);
-            out
-        }
     };
     
     println!("   [4/4] Linking...");
